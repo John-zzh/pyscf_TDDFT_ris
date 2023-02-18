@@ -7,7 +7,7 @@ script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(script_dir)
 
 
-from TDDFT_ris import parameter
+from TDDFT_ris import parameter, math_helper, eigen_solver, diag_ip
 
 einsum = lib.einsum
 
@@ -52,8 +52,24 @@ def copy_array(A):
         B[:,:,:] = A[:,:,:]
     return B
 
+def gen_P(mf, mol):
+    mo_coeff = mf.mo_coeff
+    mo_occ = mf.mo_occ
+    occidx = mo_occ > 0
+    orbo = mo_coeff[:, occidx]
+    orbv = mo_coeff[:,~occidx]
+    int_r= mol.intor_symmetric('int1e_r')
+    P = lib.einsum("xpq,pi,qa->iax", int_r, orbo, orbv.conj())
+    P = P.reshape(-1,3)
+    return P
+
 class TDDFT_ris(object):
-    def __init__(self, mf, mol, theta=0.2, add_p=False, conv_tol=1e-10, nstates=5):
+    def __init__(self, mf, mol, theta=0.2,
+                                add_p=False,
+                             conv_tol=1e-10,
+                               nroots=5,
+                             max_iter=25,
+                    pyscf_TDDFT_vind = None):
         '''add_p: whether add p orbital to aux basis
         '''
         self.mf = mf
@@ -61,7 +77,9 @@ class TDDFT_ris(object):
         self.add_p = add_p
         self.theta = theta
         self.conv_tol = conv_tol
-        self.nstates = nstates
+        self.nroots = nroots
+        self.max_iter = max_iter
+        self.pyscf_TDDFT_vind = pyscf_TDDFT_vind
 
     def gen_auxmol(self, U=0.2, add_p=False, full_fitting=False):
         print('asigning auxiliary basis set, add p function =', add_p)
@@ -153,7 +171,7 @@ class TDDFT_ris(object):
             eri2c_ex = alpha_RSH*eri2c_ex + beta_RSH*eri2c_erf
             eri3c_ex = alpha_RSH*eri3c_ex + beta_RSH*eri3c_erf
         else:
-            print('2c2e and 2c2e for (ia|jb)')
+            print('2c2e and 3c2e for (ia|jb)')
 
         return eri2c_cl, eri3c_cl, eri2c_ex, eri3c_ex
 
@@ -319,14 +337,14 @@ class TDDFT_ris(object):
         print('n_occ =', n_occ)
         print('n_vir =', n_vir)
         mo_energy = mf.mo_energy
-        print('type(mo_energy)',type(mo_energy))
+        # print('type(mo_energy)',type(mo_energy))
         '''KS orbital energy difference, i - a
         '''
         vir = mo_energy[n_occ:].reshape(1,n_vir)
         occ = mo_energy[:n_occ].reshape(n_occ,1)
         delta_hdiag = np.repeat(vir, n_occ, axis=0) - np.repeat(occ, n_vir, axis=1)
         hdiag = delta_hdiag.reshape(n_occ*n_vir)
-        Hdiag = np.vstack((hdiag, -hdiag))
+        Hdiag = np.vstack((hdiag, hdiag))
         Hdiag = Hdiag.reshape(-1)
         # print(hdiag)
         # print(Hdiag)
@@ -407,33 +425,61 @@ class TDDFT_ris(object):
             return TDA_mv(V.T).T
 
         def TDDFT_vind(U):
-            print('U.shape',U.shape)
+            # print('U.shape',U.shape)
             X = U[:,:n_occ*n_vir].T
             Y = U[:,n_occ*n_vir:].T
-            return TDDFT_mv(X, Y)
+            U1, U2 = TDDFT_mv(X, Y)
+            U = np.vstack((U1, U2)).T
+            return U
 
-        return TDA_vind, TDDFT_vind, hdiag, Hdiag
+        return TDA_mv, TDDFT_mv, TDA_vind, TDDFT_vind, hdiag, Hdiag
 
     def kernel_TDA(self):
-        TDA_vind, TDDFT_vind, hdiag, Hdiag = self.gen_vind()
-        initial = TDA_diag_initial_guess(self.nstates, hdiag).T
+        TDA_mv, TDDFT_mv, TDA_vind, TDDFT_vind, hdiag, Hdiag = self.gen_vind()
+        initial = TDA_diag_initial_guess(self.nroots, hdiag).T
         converged, e, amps = davidson1(
                       aop=TDA_vind, x0=initial, precond=hdiag,
                       tol=self.conv_tol,
-                      nroots=self.nstates, lindep=1e-14,
+                      nroots=self.nroots, lindep=1e-14,
                       max_cycle=35,
                       max_space=10000)
         e*=parameter.Hartree_to_eV
         return converged, e, amps
 
+    # def kernel_TDDFT(self):
+    #     TDA_mv, TDDFT_mv, TDA_vind, TDDFT_vind, hdiag, Hdiag = self.gen_vind()
+    #
+    #     initial = TDDFT_diag_initial_guess(self.nroots, hdiag).T
+    #     print('initial.shape',initial.shape)
+    #     converged, e, amps = davidson_nosym1(
+    #                   aop=TDDFT_vind, x0=initial, precond=Hdiag,
+    #                   tol=self.conv_tol,
+    #                   nroots=self.nroots, lindep=1e-14,
+    #                   max_cycle=35,
+    #                   max_space=10000)
+    #     e*=parameter.Hartree_to_eV
+    #     return converged, e, amps
+
     def kernel_TDDFT(self):
-        TDA_vind, TDDFT_vind, hdiag, Hdiag = self.gen_vind()
-        initial = TDDFT_diag_initial_guess(self.nstates, hdiag).T
-        converged, e, amps = davidson_nosym1(
-                      aop=TDDFT_vind, x0=initial, precond=Hdiag,
-                      tol=self.conv_tol,
-                      nroots=self.nstates, lindep=1e-14,
-                      max_cycle=35,
-                      max_space=10000)
-        e*=parameter.Hartree_to_eV
-        return converged, e, amps
+        TDA_mv, TDDFT_mv, TDA_vind, TDDFT_vind, hdiag, Hdiag = self.gen_vind()
+        name = 'TDDFT-ris'
+        if self.pyscf_TDDFT_vind:
+            name = 'TDDFT-abinitio'
+            def TDDFT_mv(X, Y):
+                '''convert pyscf style (bra) to my style (ket)
+                return AX + BY and AY + BX'''
+                XY = np.vstack((X,Y)).T
+                U = self.pyscf_TDDFT_vind(XY)
+                A_size = U.shape[1]//2
+                U1 = U[:,:A_size].T
+                U2 = -U[:,A_size:].T
+                return U1, U2
+
+        energies, X, Y = eigen_solver.TDDFT_eigen_solver(matrix_vector_product = TDDFT_mv,
+                                                    hdiag = hdiag,
+                                                    N_states = self.nroots,
+                                                    conv_tol = self.conv_tol,
+                                                    max_iter = self.max_iter)
+        P = gen_P(self.mf, self.mol)
+        eigen_solver.gen_spectra(energies, X+Y, P=P, name=name)
+        return energies, X, Y
