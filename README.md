@@ -1,6 +1,6 @@
 # pyscf-ris
-The repo demonstrates The semiempirical method TDDFT-ris.
-A toy code for TDDFT-ris for PySCF.
+This repo demonstrates the semiempirical method TDDFT-ris.
+A toy code for TDDFT-ris based on PySCF.
 
 Alos, see the TDDFT-ris+p plugin for Turbomole, https://github.com/John-zzh/TDDFT-ris.
 ## Quick run
