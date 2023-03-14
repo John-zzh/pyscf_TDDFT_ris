@@ -16,7 +16,7 @@ Feel free to test out larger molecules (20-99 atoms) listed in `xyz_files_EXTEST
 
 ## Theory
 1. Based on accurate KS ground state.
-1. In the response paert, use RIJK + minimal auxiliary basis (one s type Gaussian function per atom)
+1. In the response part, use RIJK + minimal auxiliary basis (one s type Gaussian function per atom)
 2. No exchang-correlation kernel.
 
 ## Reference
