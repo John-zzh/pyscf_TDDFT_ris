@@ -1,11 +1,28 @@
-from pyscf import gto, lib
+from pyscf import gto, lib, dft
 import numpy as np
 from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper
-
+from mokit.lib.gaussian import load_mol_from_fch, mo_fch2py
+from mokit.lib.rwwfn import read_eigenvalues_from_fch, read_nbf_and_nif_from_fch
 np.set_printoptions(linewidth=250, threshold=np.inf)
 
 einsum = lib.einsum
 
+def get_mol_mf(fch_file, functional):
+
+    mol = load_mol_from_fch(fch_file)
+    mol.build()
+    print('======= Molecular Coordinates ========')
+    print(mol.atom)
+
+    [print(k, v) for k, v in mol.basis.items()]
+    mf = dft.RKS(mol)
+    mf.mo_coeff = mo_fch2py(fch_file)
+    nbf, nif = read_nbf_and_nif_from_fch(fch_file)
+    mf.mo_energy = read_eigenvalues_from_fch(fch_file, nif=nif, ab='alpha')
+    nocc = mol.nelectron // 2
+    mf.mo_occ = np.asarray([2] * nocc + [0] * (nbf - nocc))
+    mf.xc = functional
+    return mol, mf
 
 def gen_P(mf, mol):
     mo_coeff = mf.mo_coeff
