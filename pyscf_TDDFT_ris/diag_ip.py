@@ -51,13 +51,13 @@ def TDDFT_diag_initial_guess(V_holder, W_holder, N_states, hdiag):
                             V_holder[:,:N_states],
                             W_holder[:,:N_states])
 
-def TDDFT_diag_preconditioner(R_x, R_y, omega, hdiag, conv_tol = None):
+def TDDFT_diag_preconditioner(R_x, R_y, omega, hdiag):
     '''
     preconditioners for each corresponding residual (state)
     '''
     hdiag = hdiag.reshape(-1,1)
     N_states = R_x.shape[1]
-    t = 1e-14
+    t = 1e-10
     d = np.repeat(hdiag.reshape(-1,1), N_states, axis=1)
 
     D_x = d - omega

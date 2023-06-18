@@ -16,14 +16,11 @@ def TDDFT_eigen_solver(matrix_vector_product,
                                      conv_tol = 1e-5,
                                      max_iter = 25 ):
     '''
-    [ A' B' ] X - [1   0] Y Ω = 0
-    [ B' A' ] Y   [0  -1] X   = 0
+    [ A B ] X - [1   0] Y Ω = 0
+    [ B A ] Y   [0  -1] X   = 0
 
-    A'X = [ diag1   0        0 ] [0]
-          [  0   reduced_A   0 ] [X]
-          [  0      0     diag3] [0]
     '''
-
+    print('======= TDDFT-ris eiegn solver statrs =======')
 
     TD_start = time.time()
     A_size = hdiag.shape[0]
@@ -62,13 +59,14 @@ def TDDFT_eigen_solver(matrix_vector_product,
                                     W_holder = W_holder,
                                     N_states = size_new,
                                        hdiag = hdiag)
-
+    # print('initial energies =', energies)
     subcost = 0
     Pcost = 0
     MVcost = 0
     GScost = 0
     subgencost = 0
     full_cost = 0
+
     for ii in range(max_iter):
 
         V = V_holder[:,:size_new]
@@ -188,7 +186,7 @@ def TDDFT_eigen_solver(matrix_vector_product,
         print('=== TDDFT eigen solver Failed Due to Iteration Limit ===')
         print('current residual norms', r_norms)
     else:
-        print('TDDFT eigen solver Guess Done' )
+        print('TDDFT eigen solver Done' )
 
     print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, TD_cost))
     print('final subspace', sub_A.shape[0])

@@ -432,6 +432,8 @@ def TDDFT_subspace_eigen_solver(a, b, sigma, pi, k):
     L_inv = np.linalg.inv(L)
     U_inv = np.linalg.inv(U)
 
+    # L_inv = np.linalg.cholesky(np.linalg.inv(s_m_p))
+    # U_inv = L_inv.T
     ''' a ̃−b ̃= U^-T d^−1/2 (a−b) d^-1/2 U^-1 = GG^T '''
     dambd =  d_mh.reshape(-1,1)*(a-b)*d_mh.reshape(1,-1)
     GGT = np.linalg.multi_dot([U_inv.T, dambd, U_inv])
