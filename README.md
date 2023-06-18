@@ -61,7 +61,7 @@ Navigate to the directory containing the `.fch` file and execute:
 python with_fch.py
 ```
 
-Similar script to read ORCA `.molden` file is provided in the `/examples/ORCA_molden/` folder. Please note that MOKIT is not required in this way.
+Similar script to read ORCA `.molden` file is provided in the `/examples/ORCA_molden/` folder. Please note that MOKIT is not required in this way. Also, because `.molden` has normalized basis set, users need to manually input the basis set used in DFT calculation.
 
 At present, this package exclusively supports **closed shell** systems with **hybrid** functional and range-separated hybrid (**RSH**) functional, as parameterized in `pyscf_***REMOVED***`. If you require a functional that is not listed there, you can simply augment the dictionary with the name of the functional and its parameters. For instance, for a hybrid functional, you would add the Hartree-Fock (HF) component $a_x$, or for an RSH functional, you would include the $\omega$, $\alpha$, and $\beta$ values.
 
