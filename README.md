@@ -85,6 +85,7 @@ Owing to its similar structure to ab initio TDDFT, the TDDFT-ris model can be re
 1. Support for unrestricted shell system.
 2. Support for pure functional (actually, it currently can, just add a functional with $a_x =0$ in the `parameter.py` file.)
 3. Support for other software packages that have not built-in the TDDFT-ris method, such as Qchem, NWChem, BDF.
+4. Uniformed output file to support NTO analysis.
 
 ## Acknowledgements
 Thank Dr. Zou for powerful MOKIT support. Thank gjj for the detailed guidance of MOKIT installaiton on MacOS system.
