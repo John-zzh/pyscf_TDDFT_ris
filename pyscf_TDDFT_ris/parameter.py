@@ -1,4 +1,4 @@
-#!/usr/bin/python
+# Description: This file contains all the parameters used in the code
 Hartree_to_eV = 27.211386245988
 
 '''
@@ -30,46 +30,30 @@ radii = [0.5292, 0.3113, 1.6283, 1.0855, 0.8141, 0.6513, 0.5428, 0.4652, 0.4071,
 0.8659, 0.8188, 0.8086]
 exp = [1/(i*1.8897259885789)**2 for i in radii]
 
-as_exp = dict(zip(elements_106,exp))
-# print(as_exp)
-RSH_F = [
-'lc-b3lyp',
-'wb97',
-'wb97x',
-'wb97x-d3',
-'cam-b3lyp']
+ris_exp = dict(zip(elements_106,exp))
 
+'''
+range-separated hybrid functionals, (omega, alpha, beta)
+'''
+rsh_func = {}
+rsh_func['wb97'] = (0.4, 0, 1.0)
+rsh_func['wb97x'] = (0.3, 0.157706, 0.842294)  # a+b=100% Long-range HF exchange
+rsh_func['wb97x-d3'] = (0.25, 0.195728, 0.804272)
+rsh_func['wb97x-v'] = (0.30, 0.167, 0.833)
+rsh_func['wb97x-d3bj'] = (0.30, 0.167, 0.833)
+rsh_func['cam-b3lyp'] = (0.33, 0.19, 0.46) # a+b=65% Long-range HF exchange
+rsh_func['lc-blyp'] = (0.33, 0, 1.0)
+rsh_func['lc-PBE'] = (0.47, 0, 1.0)
 
-hybride_F = [
-'b3lyp',
-'tpssh',
-'m05-2x',
-'pbe0',
-'m06',
-'m06-2x',
-None]
-hybride_ax = [
-0.2,
-0.1,
-0.56,
-0.25,
-0.27,
-0.54,
-1]
-Func_ax = dict(zip(hybride_F, hybride_ax))
-
-
-
-def gen_alpha_beta_ax(functional):
-
-    '''
-        RSH functionals have specific a_x, beta, alpha values;
-        hybride fucntionals have fixed alpha12 and beta12 values,
-        with different a_x values, by which create beta, alpha
-    '''
-    if functional in RSH_F:
-        a_x = 1
-    elif functional in hybride_F:
-        a_x = Func_ax[functional]
-
-    return a_x
+'''
+hybrid functionals, hybrid component a_x
+'''
+hbd_func = {}
+hbd_func['tpssh'] = 0.1
+hbd_func['b3lyp'] = 0.2
+hbd_func['pbe0'] = 0.25
+hbd_func['bhh-lyp'] = 0.5
+hbd_func['m05-2x'] = 0.56
+hbd_func['m06'] = 0.27
+hbd_func['m06-2x'] = 0.54
+hbd_func[None] = 1
