@@ -63,10 +63,12 @@ The TDDFT-ris model provides a nearly negligible deviation of just 0.06 eV for e
 Owing to its similar structure to ab initio TDDFT, the TDDFT-ris model can be readily integrated into most quantum chemistry packages, such as TURBOMOLE.
 
 ## To do list
-1. Support for unrestricted shell system.
-2. Support for pure functional (actually, it currently can, just add a functional with $a_x =0$ in the `parameter.py` file.)
-3. Support for other software packages that have not built-in the TDDFT-ris method, such as Qchem, NWChem, BDF.
+1. Open shell system (UKS).
+2. Pure functional (actually, it currently can, just add a functional with $a_x =0$ in the `parameter.py` file.)
+3. Interface for other software packages that have not built-in the TDDFT-ris method, such as Qchem, NWChem, BDF.
 4. Uniformed output file to support NTO analysis.
+5. Assign certain elements with full default fitting basis, e.g. transition metals with `d` orbitals
+6. Solvation model
 
 ## Acknowledgements
 Thank Dr. Zou for powerful MOKIT support. Thank gjj for the detailed guidance of MOKIT installaiton on MacOS system.
