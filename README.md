@@ -1,14 +1,24 @@
-# pyscf-ris
-This repo demonstrates the semiempirical method TDDFT-ris.
-A toy code for TDDFT-ris based on PySCF.
+# pyscf-TDDFT-ris
+This PySCF-based python package demonstrates the semiempirical method TDDFT-ris.
+It can read `.fch` and `.molden` file and then run TDDFT-ris calculation.
 
-Also, see the TDDFT-ris+p plugin for Turbomole, [https://github.com/John-zzh/TDDFT-ris](https://github.com/John-zzh/TDDFT-ris)
+Note: Turbomole has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
 
-## Quick run
-You can directly fork&clone this repo and then
+## Installation
+This package requires pre-installation of [PySCF](https://github.com/pyscf/pyscf). `pip install pyscf` is just fine.
+
+For Gaussian users, if you want to start calculation with `.fch` file, then you need to install [MOKIT](https://gitlab.com/jxzou/mokit). Use their pre-compiled version is most convenient.
+
+
+
+You can directly `git clone` this repo and then put
 ```
-python test.py
+export PYTHONPATH=path_to_your_dir:$PYTHONPATH
 ```
+in your `~/.bash_profile` or `~/.bashrc` file to 'install' this package. `path_to_your_dir` is the path to the root directory where you can see `/pyscf_TDDFT_ris/` folder.
+
+
+
 
 It will perform TDDFT-ris calculation and then a standard TDDFT calculation. UV spectra file for both methods will be generated.
 
