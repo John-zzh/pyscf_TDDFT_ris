@@ -18,7 +18,7 @@ def get_mol_mf(molden_file, functional):
 
     return mol, mf
 
-mol, mf = get_mol_mf(molden_file='molden.input', functional='pbe0')
+mol, mf = get_mol_mf(molden_file='methanol.molden.input', functional='pbe0')
 
 td = TDDFT_ris.TDDFT_ris(mf, mol, add_p=False, nroots = 20)
 energies, X, Y = td.kernel_TDDFT()
