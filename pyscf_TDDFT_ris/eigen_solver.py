@@ -11,10 +11,10 @@ import time
 
 
 def TDDFT_eigen_solver(matrix_vector_product,
-                                    hdiag,
-                                    N_states = 20,
-                                     conv_tol = 1e-5,
-                                     max_iter = 25 ):
+                        hdiag,
+                        N_states = 20,
+                        conv_tol = 1e-5,
+                        max_iter = 25 ):
     '''
     [ A B ] X - [1   0] Y Ω = 0
     [ B A ] Y   [0  -1] X   = 0
@@ -208,9 +208,10 @@ def gen_spectra(energies, transition_vector, P, name):
     energy in unit eV
     1240.7011/ xyz eV = xyz nm
 
-    for TDA,   f = 2/3 E |<P|X>|**2     ???
-    for TDDFT, f = 2/3 E |<P|X+Y>|
-
+    for TDA,   f = 2/3 E 2*|<P|X>|**2     
+    for TDDFT, f = 2/3 E 2*|<P|X+Y>|**2     
+    P is right-hand-side of polarizability
+    transition_vector is eigenvector of A matrix
     '''
     energies = energies.reshape(-1,)
 
@@ -219,15 +220,10 @@ def gen_spectra(energies, transition_vector, P, name):
     cm_1 = eV*8065.544
     nm = 1240.7011/eV
 
-    '''
-    P is right-hand-side of polarizability
-    transition_vector is eigenvector of A matrix
-    '''
-
     hartree = energies/parameter.Hartree_to_eV
     trans_dipole = np.dot(P.T, transition_vector)
 
-    trans_dipole = 2*trans_dipole**2
+    trans_dipole = 2*trans_dipole**2     
     '''
     2* because alpha and beta spin
     '''
@@ -238,10 +234,18 @@ def gen_spectra(energies, transition_vector, P, name):
     '''
     entry = [eV, nm, cm_1, oscillator_strength]
     data = np.zeros((eV.shape[0],len(entry)))
+    
+
     for i in range(4):
         data[:,i] = entry[i]
-
+    print('eV       nm       cm^-1    oscillator strength')
+    for row in range(data.shape[0]):
+        print('{:<8.3f} {:<8d} {:<8d} {:<8.8f}'.format(data[row,0], round(data[row,1]), round(data[row,2]), data[row,3]))
+    print()
     filename = name + '_UV_spectra.txt'
     with open(filename, 'w') as f:
         np.savetxt(f, data, fmt='%.8f', header='eV       nm           cm^-1         oscillator strength')
-    print('spectra written to', filename, '\n')
+    print('spectra written to', filename)
+
+
+    

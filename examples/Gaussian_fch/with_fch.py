@@ -1,10 +1,8 @@
 
-from pyscf_TDDFT_ris import TDDFT_ris
+from pyscf_TDDFT_ris import TDDFT_ris, readMO
 
-mol, mf = TDDFT_ris.get_mol_mf_fch('2periacene_CAM-B3LYP.fch', 'CAM-B3LYP')
+mf = readMO.get_mf_from_fch('2periacene_CAM-B3LYP.fch', 'CAM-B3LYP')
 
-td = TDDFT_ris.TDDFT_ris(mf, mol, add_p=False, nroots = 20, max_iter=30)
+
+td = TDDFT_ris.TDDFT_ris(mf, add_p=False, nroots = 20, conv_tol=1e-3)
 energies, X, Y = td.kernel_TDDFT()
-print('Excitations energies:')
-print(energies)
-print('==================')

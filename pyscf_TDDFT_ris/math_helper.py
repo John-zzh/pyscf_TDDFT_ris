@@ -263,7 +263,7 @@ def gen_sub_ab(V_holder, W_holder, U1_holder, U2_holder,
 
 
 
-def Gram_Schmidt_fill_holder(V, count, vecs, double = True):
+def Gram_Schmidt_fill_holder(V, count, vecs, double = False):
     '''V is a vectors holder
        count is the amount of vectors that already sit in the holder
        nvec is amount of new vectors intended to fill in the V
@@ -334,7 +334,7 @@ def check_anti_symmetry(A):
     a = np.linalg.norm(A + A.T)
     return a
 
-def VW_Gram_Schmidt_fill_holder(V_holder, W_holder, m, X_new, Y_new, double = True):
+def VW_Gram_Schmidt_fill_holder(V_holder, W_holder, m, X_new, Y_new, double = False):
     '''
     put X_new into V, and Y_new into W
     m: the amount of vectors that already on V or W
