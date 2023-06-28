@@ -15,16 +15,21 @@ H         -5.23998        4.31540        0.27138
 H         -3.22959        2.35981       -0.24953
 '''
 mol.basis = 'def2-SVP'
+mol.verbose = 3
 mol.build()
 
-mf = dft.RKS(mol)
+mf = dft.UKS(mol)
+mol.charge = 1
+mol.spin = 1
 mf = mf.density_fit()
 mf.xc = "pbe0"
 mf.conv_tol = 1e-10
 mf.grids.level = 3
 mf.kernel()
 
-# print('mo_energy=',mf.mo_energy)
+# print('mf.mol == mol', mf.mol == mol)
+print('mf.mo_coeff.shape =', mf.mo_coeff.shape)
+print('mf.mo_energy.shape =',mf.mo_energy.shape)
 # td = tddft.TDA(mf)
 # td.nroots = 5
 # td.kernel()
@@ -38,6 +43,14 @@ mf.kernel()
 '''
 to invoke the TDDFT-ris method
 '''
+
+ab = 0
+
+mf.mo_occ = mf.mo_occ[ab,:]
+mf.mo_coeff = mf.mo_coeff[ab,:]
+mf.mo_energy = mf.mo_energy[ab,:]
+
+print('mf.mo_occ',mf.mo_occ)
 
 td = TDDFT_ris.TDDFT_ris(mf, add_p=False, theta=0.2, nroots = 20)
 energies, X, Y = td.kernel_TDDFT()
