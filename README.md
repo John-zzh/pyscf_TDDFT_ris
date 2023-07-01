@@ -24,15 +24,14 @@ In the above command, path_to_your_directory should be replaced with the path to
 The package follows the PySCF style to run the TDDFT-ris calculation. Take `examples/Gaussain_fch/with_fch.py` as an example,
 
 ```
-from pyscf_TDDFT_ris import TDDFT_ris
 
-mol, mf = TDDFT_ris.get_mol_mf_fch('2periacene_CAM-B3LYP.fch', 'CAM-B3LYP')
+from pyscf_TDDFT_ris import TDDFT_ris, readMO
 
-td = TDDFT_ris.TDDFT_ris(mf, mol, add_p=False, nroots = 20, max_iter=30)
+mf = readMO.get_mf_from_fch('2periacene_CAM-B3LYP.fch', 'CAM-B3LYP')
+
+
+td = TDDFT_ris.TDDFT_ris(mf, add_p=False, nroots = 20, conv_tol=1e-3)
 energies, X, Y = td.kernel_TDDFT()
-print('Excitations energies:')
-print(energies)
-print('==================')
 ```
 
 The function `get_mol_mf` extracts **molecular coordinates**, **basis set**, **KS orbital energies** and **coefficients matrix** from the `2periacene_CAM-B3LYP.fch` file. You need to manually input the functional name you used in your DFT calculation. In this case it uses `CAM-B3LYP` functional. `mol` and `mf` objects contain all these ground state information, and they are the input of the TDDFT-ris diagonalization precedure. `add_p=False` means only include one `s` type orbital in the axillary basis; `add_p=True` means adding one more `p` orbital for non-Hydrogen atoms. Adding `p` orbital can improve the accuracy, but also slows down the calculation by ~2.7 folds (for organic systems).
