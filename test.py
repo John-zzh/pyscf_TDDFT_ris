@@ -17,15 +17,16 @@ def gen_mol():
     mol.build()
     return mol
 
-def gen_mf(mol, RKS, func, charge=0, spin=0):
+def gen_mf(RKS, func, charge=0, spin=0):
+    mol = gen_mol()
     if RKS:
         mf = dft.RKS(mol)
     else:
         mf = dft.UKS(mol)
 
     # mf = mf.density_fit()
-    # mf.conv_tol = 1e-10
-    # mf.grids.level = 3
+    mf.conv_tol = 1e-10
+    mf.grids.level = 3
     mf.xc = func
     mol.charge = charge
     mol.spin = spin
@@ -41,7 +42,7 @@ def main():
 
     ''' pbe '''
     print('======================================= RKS pbe TDA-ris =======================================')
-    mf = gen_mf(mol=mol, RKS=True, func='tpss', charge=0, spin=0)
+    mf = gen_mf(RKS=True, func='pbe', charge=0, spin=0)
     td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
     energies, X, oscillator_strength = td.kernel_TDA()
     standard = []
@@ -54,7 +55,7 @@ def main():
 
     ''' pbe0 '''
     print('======================================= RKS pbe0 TDA-ris =======================================')
-    mf = gen_mf(mol=mol, RKS=True, func='pbe0', charge=0, spin=0)
+    mf = gen_mf(RKS=True, func='pbe0', charge=0, spin=0)
     td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
     energies, X, oscillator_strength = td.kernel_TDA()
     standard = []
@@ -66,7 +67,7 @@ def main():
 
     ''' wb97x '''
     print('======================================= RKS wb97x TDA-ris =======================================')
-    mf = gen_mf(mol=mol, RKS=True, func='wb97x', charge=0, spin=0)
+    mf = gen_mf(RKS=True, func='wb97x', charge=0, spin=0)
     td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
     energies, X, oscillator_strength = td.kernel_TDA()
     standard = []
@@ -85,7 +86,7 @@ def main():
     charge = 1
     ''' pbe '''
     print('======================================= UKS pbe TDA-ris =======================================')
-    mf = gen_mf(mol=mol, RKS=False, func='tpss', charge=charge, spin=1)
+    mf = gen_mf(RKS=False, func='pbe', charge=charge, spin=1)
     td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
     energies, X, oscillator_strength = td.kernel_TDA()
     standard = []
@@ -97,7 +98,7 @@ def main():
 
     ''' pbe0 '''
     print('======================================= UKS pbe0 TDA-ris =======================================')
-    mf = gen_mf(mol=mol, RKS=False, func='pbe0', charge=charge, spin=1)
+    mf = gen_mf(RKS=False, func='pbe0', charge=charge, spin=1)
     td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
     energies, X, oscillator_strength = td.kernel_TDA()
     standard = []
@@ -109,7 +110,7 @@ def main():
 
     ''' wb97x '''
     print('====================================== UKS wb97x TDA-ris =======================================')
-    mf = gen_mf(mol=mol, RKS=False, func='wb97x', charge=charge, spin=1)
+    mf = gen_mf(RKS=False, func='wb97x', charge=charge, spin=1)
     td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
     energies, X, oscillator_strength = td.kernel_TDA()
     standard = []
