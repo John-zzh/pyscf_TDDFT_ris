@@ -49,6 +49,9 @@ rsh_func['lc-PBE'] = (0.47, 0, 1.0)
 hybrid functionals, hybrid component a_x
 '''
 hbd_func = {}
+hbd_func['pbe'] = 0
+hbd_func['pbe,pbe'] = 0
+hbd_func['tpss'] = 0
 hbd_func['tpssh'] = 0.1
 hbd_func['b3lyp'] = 0.2
 hbd_func['pbe0'] = 0.25
