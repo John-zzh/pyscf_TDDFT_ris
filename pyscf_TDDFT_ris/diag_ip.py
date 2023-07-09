@@ -1,27 +1,16 @@
-# -*- coding: utf-8 -*-
-
-# import os,sys
-'''
-absolute import
-'''
-# script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# sys.path.append(script_dir)
-
-from pyscf_TDDFT_ris import parameter
 import numpy as np
 
-def TDA_diag_initial_guess(N_states, hdiag):
+def TDA_diag_initial_guess(V_holder, N_states, hdiag):
     '''
-    m is the amount of initial guesses
+    N_states is the amount of initial guesses
+    sort out the smallest value of hdiag, the corresponding position in the 
+    initial guess set as 1.0, everywhere else set as 0.0
     '''
     hdiag = hdiag.reshape(-1,)
-    V_size = hdiag.shape[0]
     Dsort = hdiag.argsort()
-    energies = hdiag[Dsort][:N_states]*parameter.Hartree_to_eV
-    V = np.zeros((V_size, N_states))
     for j in range(N_states):
-        V[Dsort[j], j] = 1.0
-    return V, energies
+        V_holder[Dsort[j], j] = 1.0
+    return V_holder
 
 def TDA_diag_preconditioner(residual, sub_eigenvalue, hdiag ):
     '''
@@ -39,17 +28,16 @@ def TDA_diag_preconditioner(residual, sub_eigenvalue, hdiag ):
 
     return new_guess
 
-def TDDFT_diag_initial_guess(V_holder, W_holder, N_states, hdiag):
-    '''
-    return unchanged N_states just to keep consistent with other funcs
-    '''
-    V_holder[:,:N_states], energies = TDA_diag_initial_guess(
-                                            N_states = N_states,
-                                               hdiag = hdiag)
+# def TDDFT_diag_initial_guess(V_holder, W_holder, N_states, hdiag):
+#     '''
+#     return unchanged N_states just to keep consistent with other funcs
+#     '''
+#     V_holder[:,:N_states] = TDA_diag_initial_guess(
+#                                             V_holder = V_holder,
+#                                             N_states = N_states,
+#                                                hdiag = hdiag)
 
-    return (V_holder, W_holder, N_states, energies,
-                            V_holder[:,:N_states],
-                            W_holder[:,:N_states])
+#     return V_holder, W_holder
 
 def TDDFT_diag_preconditioner(R_x, R_y, omega, hdiag):
     '''
@@ -57,7 +45,7 @@ def TDDFT_diag_preconditioner(R_x, R_y, omega, hdiag):
     '''
     hdiag = hdiag.reshape(-1,1)
     N_states = R_x.shape[1]
-    t = 1e-10
+    t = 1e-14
     d = np.repeat(hdiag.reshape(-1,1), N_states, axis=1)
 
     D_x = d - omega

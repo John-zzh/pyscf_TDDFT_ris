@@ -1,16 +1,112 @@
-#
-# import os, sys
-# script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# sys.path.append(script_dir)
-import numpy as np
 
+import numpy as np
 from pyscf_TDDFT_ris import parameter, math_helper
-from pyscf_TDDFT_ris.diag_ip import TDDFT_diag_initial_guess, TDDFT_diag_preconditioner
+from pyscf_TDDFT_ris.diag_ip import TDA_diag_initial_guess, TDA_diag_preconditioner, TDDFT_diag_preconditioner
 import time
 
+def Davidson(matrix_vector_product,
+                    hdiag,
+                    N_states = 20,
+                    conv_tol = 1e-5,
+                    max_iter = 25 ):
+    '''
+    AX = XΩ
+    Davidson frame, can use different initial guess and preconditioner
+    initial_guess is a function, takes the number of initial guess as input
+    preconditioner is a function, takes the residual as the input
+    '''
+    print('====== TDA Calculation Starts ======')
+
+    D_start = time.time()
+
+    A_size = hdiag.shape[0]
+
+    size_old = 0
+    size_new = min([N_states + 8, 2 * N_states, A_size])
+
+    max_N_mv = max_iter*N_states + size_new
+    V_holder = np.zeros((A_size, max_N_mv))
+    W_holder = np.zeros_like(V_holder)
+    sub_A_holder = np.zeros((max_N_mv,max_N_mv))
+    '''
+    generate the initial guesss and put into the basis holder V_holder
+    '''
+    V_holder = TDA_diag_initial_guess(V_holder=V_holder, N_states=size_new, hdiag=hdiag)
+
+    # V_holder[:,:size_new] = initial_vectors[:,:]
+
+    MVcost = 0
+    for ii in range(max_iter):
+    
+        istart = time.time()
+
+        MV_start = time.time()
+        W_holder[:, size_old:size_new] = matrix_vector_product(V_holder[:,size_old:size_new])
+        MV_end = time.time()
+        iMVcost = MV_end - MV_start
+        MVcost += iMVcost
+
+        sub_A_holder = math_helper.gen_VW(sub_A_holder, V_holder, W_holder, size_old, size_new)
+        sub_A = sub_A_holder[:size_new,:size_new]
+
+        '''
+        Diagonalize the subspace Hamiltonian, and sorted.
+        sub_eigenvalue[:N_states] are smallest N_states eigenvalues
+        '''
+        sub_eigenvalue, sub_eigenket = np.linalg.eigh(sub_A)
+        sub_eigenvalue = sub_eigenvalue[:N_states]
+        sub_eigenket = sub_eigenket[:,:N_states]
+
+        full_guess = np.dot(V_holder[:,:size_new], sub_eigenket)
+        AV = np.dot(W_holder[:,:size_new], sub_eigenket)
+        residual = AV - full_guess * sub_eigenvalue
+
+        r_norms = np.linalg.norm(residual, axis=0).tolist()
+        max_norm = np.max(r_norms)
+
+        print('step ', ii+1, 'max_norm =', max_norm)
+        if max_norm < conv_tol or ii == (max_iter-1):
+            iend = time.time()
+            icost = iend - istart
+
+            print('iteration MV time {:.2f} seconds'.format(iMVcost))
+            print('iteration total time {:.2f} seconds'.format(icost))
+            print('Davidson Diagonalization Done')
+            break
+
+        index = [r_norms.index(i) for i in r_norms if i>conv_tol]
+
+        new_guess = TDA_diag_preconditioner(residual = residual[:,index],
+                                            sub_eigenvalue = sub_eigenvalue[index],
+                                            hdiag = hdiag)
+
+        size_old = size_new
+        V_holder, size_new = math_helper.Gram_Schmidt_fill_holder(V_holder, size_old, new_guess)
+
+        iend = time.time()
+        icost = iend - istart
+
+    # energies = sub_eigenvalue*parameter.Hartree_to_eV
+
+    D_end = time.time()
+    Dcost = D_end - D_start
+
+    if ii == max_iter-1:
+        print('=== TDA Failed Due to Iteration Limit ===')
+        print('current residual norms', r_norms)
+    else:
+        print('========== TDA Calculation Done==========')
+    # print('energies:')
+    # print(energies)
+    print('Maximum residual norm = {:.2e}'.format(max_norm))
+    print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, Dcost))
+    print('Final subspace size = {:d}'.format(sub_A.shape[0]))
+    print('Total Matrix-vector product cost {:.2f} seconds'.format(MVcost))
+
+    return sub_eigenvalue, full_guess
 
 
-def TDDFT_eigen_solver(matrix_vector_product,
+def Davidson_Casida(matrix_vector_product,
                         hdiag,
                         N_states = 20,
                         conv_tol = 1e-5,
@@ -45,23 +141,19 @@ def TDDFT_eigen_solver(matrix_vector_product,
     VW_holder = np.zeros_like(VU1_holder)
     WW_holder = np.zeros_like(VU1_holder)
 
-
     '''
     set up initial guess V W, transformed vectors U1 U2
     '''
 
-    (V_holder,
-    W_holder,
-    size_new,
-    energies,
-    Xig,
-    Yig) = TDDFT_diag_initial_guess(V_holder = V_holder,
-                                    W_holder = W_holder,
-                                    N_states = size_new,
-                                       hdiag = hdiag)
-    # print('initial energies =', energies)
+    # V_holder, W_holder = TDDFT_diag_initial_guess(V_holder = V_holder,
+    #                                                 W_holder = W_holder,
+    #                                                 N_states = size_new,
+    #                                                 hdiag = hdiag)
+    
+    V_holder = TDA_diag_initial_guess(V_holder = V_holder,
+                                         N_states = N_states,
+                                         hdiag = hdiag)
     subcost = 0
-    Pcost = 0
     MVcost = 0
     GScost = 0
     subgencost = 0
@@ -158,7 +250,6 @@ def TDDFT_eigen_solver(matrix_vector_product,
                                                    R_y = R_y[:,index],
                                                  omega = omega[index],
                                                  hdiag = hdiag)
-
         '''
         GS and symmetric orthonormalization
         '''
@@ -186,7 +277,7 @@ def TDDFT_eigen_solver(matrix_vector_product,
         print('=== TDDFT eigen solver Failed Due to Iteration Limit ===')
         print('current residual norms', r_norms)
     else:
-        print('TDDFT eigen solver Done' )
+        print('======= TDDFT eigen solver Done =======' )
 
     print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, TD_cost))
     print('final subspace', sub_A.shape[0])
@@ -195,11 +286,11 @@ def TDDFT_eigen_solver(matrix_vector_product,
         cost = locals()[enrty]
         print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/TD_cost))
 
-    energies = omega*parameter.Hartree_to_eV
+    # energies = omega*parameter.Hartree_to_eV
 
-    return energies, X_full, Y_full
+    return omega, X_full, Y_full
 
-def gen_spectra(energies, transition_vector, P, name):
+def gen_spectra(energies, transition_vector, P, name, RKS):
     '''
     E = hν
     c = λ·ν
@@ -208,9 +299,32 @@ def gen_spectra(energies, transition_vector, P, name):
     energy in unit eV
     1240.7011/ xyz eV = xyz nm
 
-    for TDA,   f = 2/3 E 2*|<P|X>|**2     
+    oscilator strength f = 2/3 E u
+
+
+    in general transition dipole moment u =  [Pα]^T [Xα] = Pα^T Xα + Pβ^TXβ + Qα^TYα + Qβ^T Yβ
+                                             [Pβ]   [Xβ]
+                                             [Qα]   [Yα]
+                                             [Qβ]   [Yβ]
+    P = Q
+
+    TDA: 
+        u =  [Pα]^T [Xα]
+             [Pβ]   [Xβ]
+
+        RKS: u = 2 P^T X
+        UKS: u = Pα^T Xα + Pβ^TXβ = P^T X (P = [Pα])
+                                               [Pβ]    
+    TDDFT:
+        RKS: u = 2 P^T X + 2 P^T Y = 2 P^T(X+Y)
+        UKS: u = Pα^T Xα + Pβ^TXβ + Qα^TYα + Qβ^T Yβ =  P^T(X+Y)  (P = [Pα])
+                                                                       [Pβ]     
+                                                                       [Qα]
+                                                                       [Qβ]
+
+    for TDA,   f = 2/3 E 2*|<P|X>|**2                   
     for TDDFT, f = 2/3 E 2*|<P|X+Y>|**2     
-    P is right-hand-side of polarizability
+    P is transition dipole 
     transition_vector is eigenvector of A matrix
     '''
     energies = energies.reshape(-1,)
@@ -221,13 +335,16 @@ def gen_spectra(energies, transition_vector, P, name):
     nm = 1240.7011/eV
 
     hartree = energies/parameter.Hartree_to_eV
-    trans_dipole = np.dot(P.T, transition_vector)
 
-    trans_dipole = 2*trans_dipole**2     
+    trans_dipole_moment = np.dot(P.T, transition_vector)**2
+
+    if RKS:
+        trans_dipole_moment *= 2
+
     '''
     2* because alpha and beta spin
     '''
-    oscillator_strength = 2/3 * hartree * np.sum(trans_dipole, axis=0)
+    oscillator_strength = 2/3 * hartree * np.sum(trans_dipole_moment, axis=0)
 
     '''
     eV, oscillator_strength, cm_1, nm
@@ -238,14 +355,36 @@ def gen_spectra(energies, transition_vector, P, name):
 
     for i in range(4):
         data[:,i] = entry[i]
+
     print('eV       nm       cm^-1    oscillator strength')
     for row in range(data.shape[0]):
-        print('{:<8.3f} {:<8d} {:<8d} {:<8.8f}'.format(data[row,0], round(data[row,1]), round(data[row,2]), data[row,3]))
+        print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
     print()
+
     filename = name + '_UV_spectra.txt'
     with open(filename, 'w') as f:
         np.savetxt(f, data, fmt='%.8f', header='eV       nm           cm^-1         oscillator strength')
-    print('spectra written to', filename)
+    print('spectra data written to', filename)
+
+    return oscillator_strength
 
 
+def XmY_2_XY(Z, AmB_sq, omega):
+    '''given X, (A-B)^2, omega
+       return X, Y
+
+        X-Y = (A-B)^-1/2 Z
+        X+Y = (A-B)^1/2 Z omega^-1 
+    '''
+    AmB_sq = AmB_sq.reshape(-1,1)
+
+    AmB_inv_sqrt = AmB_sq**(-0.25)
+    AmB_sqrt = AmB_sq**0.25
     
+    XmY = AmB_inv_sqrt * Z
+    XpY = AmB_sqrt*XmY/omega
+
+    X = (XpY + XmY)/2
+    Y = (XpY - XmY)/2
+
+    return X, Y
