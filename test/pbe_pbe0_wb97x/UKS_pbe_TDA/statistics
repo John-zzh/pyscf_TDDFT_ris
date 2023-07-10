@@ -1,0 +1,108 @@
+
+ DSCF STATISTICS OUTPUT :
+
+ integral neglect threshold       :  0.33E-10
+ integral storage threshold THIZE :  0.10E-04
+ integral storage threshold THIME :         5
+
+ cpu-time for construction of rho     :        0.015 s
+
+
+
+ --------------------    1.ITERATION  --------------------
+  cpu-time for ri-coulomb part        :        0.000 s
+ wall-time for ri-coulomb part        :        0.000 s
+
+ eigenvalue        1 after current iteration:   0.55966846D-01
+ eigenvalue        2 after current iteration:   0.15231074D+00
+ eigenvalue        3 after current iteration:   0.22531921D+00
+ eigenvalue        4 after current iteration:   0.24799003D+00
+ eigenvalue        5 after current iteration:   0.36248474D+00
+ eigenvalue        6 after current iteration:   0.36664746D+00
+ eigenvalue        7 after current iteration:   0.36870884D+00
+ eigenvalue        8 after current iteration:   0.38343906D+00
+ eigenvalue        9 after current iteration:   0.44742597D+00
+ eigenvalue       10 after current iteration:   0.46574357D+00
+
+
+ --------------------    2.ITERATION  --------------------
+  cpu-time for ri-coulomb part        :        0.000 s
+ wall-time for ri-coulomb part        :        0.000 s
+
+ eigenvalue        1 after current iteration:   0.54570423D-01
+ eigenvalue        2 after current iteration:   0.15114175D+00
+ eigenvalue        3 after current iteration:   0.22215205D+00
+ eigenvalue        4 after current iteration:   0.24592507D+00
+ eigenvalue        5 after current iteration:   0.36195968D+00
+ eigenvalue        6 after current iteration:   0.36560612D+00
+ eigenvalue        7 after current iteration:   0.36813416D+00
+ eigenvalue        8 after current iteration:   0.37997508D+00
+ eigenvalue        9 after current iteration:   0.44720196D+00
+ eigenvalue       10 after current iteration:   0.45178176D+00
+
+
+ --------------------    3.ITERATION  --------------------
+  cpu-time for ri-coulomb part        :        0.000 s
+ wall-time for ri-coulomb part        :        0.000 s
+
+ eigenvalue        1 after current iteration:   0.54553064D-01
+ eigenvalue        2 after current iteration:   0.15067196D+00
+ eigenvalue        3 after current iteration:   0.22203810D+00
+ eigenvalue        4 after current iteration:   0.24591578D+00
+ eigenvalue        5 after current iteration:   0.36026844D+00
+ eigenvalue        6 after current iteration:   0.36554380D+00
+ eigenvalue        7 after current iteration:   0.36722350D+00
+ eigenvalue        8 after current iteration:   0.37996270D+00
+ eigenvalue        9 after current iteration:   0.44587917D+00
+ eigenvalue       10 after current iteration:   0.44654708D+00
+
+
+ --------------------    4.ITERATION  --------------------
+  cpu-time for ri-coulomb part        :        0.000 s
+ wall-time for ri-coulomb part        :        0.000 s
+
+ eigenvalue        1 after current iteration:   0.54553064D-01
+ eigenvalue        2 after current iteration:   0.15067194D+00
+ eigenvalue        3 after current iteration:   0.22203801D+00
+ eigenvalue        4 after current iteration:   0.24591578D+00
+ eigenvalue        5 after current iteration:   0.36023256D+00
+ eigenvalue        6 after current iteration:   0.36554380D+00
+ eigenvalue        7 after current iteration:   0.36722325D+00
+ eigenvalue        8 after current iteration:   0.37996270D+00
+ eigenvalue        9 after current iteration:   0.44503143D+00
+ eigenvalue       10 after current iteration:   0.44643314D+00
+
+
+ --------------------    5.ITERATION  --------------------
+  cpu-time for ri-coulomb part        :        0.000 s
+ wall-time for ri-coulomb part        :        0.000 s
+
+ eigenvalue        1 after current iteration:   0.54553064D-01
+ eigenvalue        2 after current iteration:   0.15067194D+00
+ eigenvalue        3 after current iteration:   0.22203801D+00
+ eigenvalue        4 after current iteration:   0.24591578D+00
+ eigenvalue        5 after current iteration:   0.36023256D+00
+ eigenvalue        6 after current iteration:   0.36554380D+00
+ eigenvalue        7 after current iteration:   0.36722325D+00
+ eigenvalue        8 after current iteration:   0.37996270D+00
+ eigenvalue        9 after current iteration:   0.44399162D+00
+ eigenvalue       10 after current iteration:   0.44643258D+00
+
+
+ --------------------    6.ITERATION  --------------------
+  cpu-time for ri-coulomb part        :        0.000 s
+ wall-time for ri-coulomb part        :        0.000 s
+
+ eigenvalue        1 after current iteration:   0.54553064D-01
+ eigenvalue        2 after current iteration:   0.15067194D+00
+ eigenvalue        3 after current iteration:   0.22203801D+00
+ eigenvalue        4 after current iteration:   0.24591578D+00
+ eigenvalue        5 after current iteration:   0.36023256D+00
+ eigenvalue        6 after current iteration:   0.36554380D+00
+ eigenvalue        7 after current iteration:   0.36722325D+00
+ eigenvalue        8 after current iteration:   0.37996270D+00
+ eigenvalue        9 after current iteration:   0.44398534D+00
+ eigenvalue       10 after current iteration:   0.44643258D+00
+
+  escf  : cpu elapsed         0.422 s
+          wall                1.002 s

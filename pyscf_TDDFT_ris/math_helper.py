@@ -49,40 +49,14 @@ def Gram_Schmidt_bvec(A, bvec):
 
 def VW_Gram_Schmidt(x, y, V, W):
     '''orthonormalize vector |x,y> against all vectors in |V,W>'''
-    m = np.dot(V.T,x)
-    m += np.dot(W.T,y)
+    m = np.dot(V.T,x) + np.dot(W.T,y)
 
-    n = np.dot(W.T,x)
-    n += np.dot(V.T,y)
+    n = np.dot(W.T,x) + np.dot(V.T,y)
 
-    x -= np.dot(V,m)
-    x -= np.dot(W,n)
+    x = x - np.dot(V,m) - np.dot(W,n)
 
-    y -= np.dot(W,m)
-    y -= np.dot(V,n)
+    y = y - np.dot(W,m) - np.dot(V,n)
     return x, y
-
-# def gen_VW(VW_old, V_old, V_new, W_old, W_new, size_old, size_new, symmetry = True, up_triangle = False):
-#     '''
-#     [ V_old.T ] [W_old, W_new] = [VW_old,     V_old.T W_new]
-#     [ V_new.T ]                  [V_new.T W_old, V_new.T W_new]
-#     '''
-#
-#     VW_new = np.zeros((size_new,size_new))
-#     VW_new[:size_old,:size_old] = VW_old
-#
-#     VW_new[:size_old,size_old:] = np.dot(V_old.T, W_new)
-#
-#     if up_triangle == False:
-#         if symmetry == True:
-#             VW_new[size_old:,:size_old] = VW_new[:size_old,size_old:].T
-#         else:
-#             VW_new[size_old:,:size_old] = np.dot(V_new.T, W_old)
-#
-#     VW_new[size_old:,size_old:] = np.dot(V_new.T, W_new)
-#
-#     return VW_new
-
 
 def block_symmetrize(A,m,n):
     A[m:n,:m] = A[:m,m:n].T
