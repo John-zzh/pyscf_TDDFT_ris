@@ -1,4 +1,4 @@
-from pyscf import gto, lib
+from pyscf import gto, lib, dft
 import numpy as np
 from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper
 
@@ -8,37 +8,86 @@ einsum = lib.einsum
 
 
 class TDDFT_ris(object):
-    def __init__(self, mf, 
-                theta=0.2,
-                add_p=False,
-                conv_tol=1e-5,
-                nroots=5,
-                max_iter=25,
-                pyscf_TDDFT_vind = None):
+    def __init__(self, mf: dft, 
+                theta: float = 0.2,
+                add_p: bool = False,
+                a_x: float = None,
+                omega: float = None,
+                alpha: float = None,
+                beta: float = None,
+                conv_tol: float = 1e-5,
+                nroots: int = 5,
+                max_iter: int = 25,
+                pyscf_TDDFT_vind: callable = None):
         '''
         add_p: whether add p orbital to aux basis
         '''
         self.mf = mf
-        self.functional = mf.xc.lower()
-        self.mol = mf.mol
-        self.add_p = add_p
         self.theta = theta
+        self.add_p = add_p
+        self.a_x = a_x
+        self.omega = omega
+        self.alpha = alpha
+        self.beta = beta
         self.conv_tol = conv_tol
         self.nroots = nroots
         self.max_iter = max_iter
-
+        self.mol = mf.mol
         self.pyscf_TDDFT_vind = pyscf_TDDFT_vind
 
-        self.RSH = False
-        self.hybrid = False
-        self.alpha_RSH = None
-        self.beta_RSH = None
+        if hasattr(mf, 'xc'):
+            functional = mf.xc.lower()
+            self.functional = mf.xc
+            print('Loading defult functional paramters from parameter.py.')
+            if functional in parameter.rsh_func.keys():
+                '''
+                RSH functional, need omega, alpha, beta
+                '''
+                print('use range-separated hybrid functional')
+                omega, alpha, beta = parameter.rsh_func[functional]
+                self.a_x = 1
+                self.omega = omega
+                self.alpha = alpha
+                self.beta = beta
+
+            elif functional in parameter.hbd_func.keys():
+                print('use hybrid functional')
+                self.a_x = parameter.hbd_func[functional]
+
+            else:
+                raise ValueError(f"I do not have paramters for functional {mf.xc} yet, please either manually input HF component a_x or add parameters in the parameter.py file.")
+            
+        else:
+            if self.a_x == None and self.omega == None and self.alpha == None and self.beta == None:
+                raise ValueError('Please specify the functional name or the functional parameters')
+            else:
+                if a_x:
+                    self.a_x = a_x
+                    print("hybrid functional")
+                    print(f"manually input HF component ax = {a_x}")
+
+                elif omega and alpha and beta:
+                    self.a_x = 1
+                    self.omega = omega
+                    self.alpha = alpha
+                    self.beta = beta
+                    print("range-separated hybrid functional")
+                    print(f"manually input ω = {self.omega}, screening factor")
+                    print(f"manually input α = {self.alpha}, fixed HF exchange contribution")
+                    print(f"manually input β = {self.beta}, variable part")
+
+                else:
+                    raise ValueError('missing parameters for range-separated functional, please input (w, al, be)')
+
+
+
+
 
         if self.mol.cart:
             self.eri_tag = '_cart'
         else:
             self.eri_tag = '_sph'
-        print('cartesian or spherical electron integral =',self.eri_tag)
+        print('cartesian or spherical electron integral =',self.eri_tag.split('_')[1])
 
         if mf.mo_coeff.ndim == 2:
             self.RKS = True
@@ -55,41 +104,16 @@ class TDDFT_ris(object):
             self.n_vir_a = self.n_bf - self.n_occ_a
             self.n_occ_b = sum(mf.mo_occ[1]>0)
             self.n_vir_b = self.n_bf - self.n_occ_b
-            print('n_occ_a=',self.n_occ_a)
-            print('n_vir_a=',self.n_vir_a)
-            print('n_occ_b=',self.n_occ_b)
-            print('n_vir_b=',self.n_vir_b)
-
-        functional = self.functional
-
-        if functional in parameter.rsh_func.keys():
-            '''
-            actually I only have parameters for wb97x and cam-b3lyp
-            '''
-            print('use range-separated hybrid functional')
-            self.RSH = True
-            self.a_x = 1
-
-            omega_RSH, alpha_RSH, beta_RSH = parameter.rsh_func[functional]
-            self.omega_RSH = omega_RSH
-            self.alpha_RSH = alpha_RSH
-            self.beta_RSH = beta_RSH
-
-        elif functional in parameter.hbd_func.keys():
-            print('use hybrid functional')
-            self.hybrid = True
-            self.a_x = parameter.hbd_func[mf.xc.lower()]
-
-        else:
-            raise ValueError('functional not supported, please add parameters in parameter.py')
-        
-        if self.a_x == 0:
-            pass
-
+            print('n_occ for alpha spin =',self.n_occ_a)
+            print('n_vir for alpha spin =',self.n_vir_a)
+            print('n_occ for beta spin =',self.n_occ_b)
+            print('n_vir for beta spin =',self.n_vir_b)
 
             
     def gen_auxmol(self, theta=0.2, add_p=False):
-        print('Asigning auxiliary basis set, add p function =', add_p)
+        print('Asigning minimal auxiliary basis set')
+        if add_p:
+            print('add p orbitals to auxbasis')
         print('The exponent alpha set as theta/R^2 ')
         print('global parameter theta =', theta)
         '''
@@ -134,18 +158,16 @@ class TDDFT_ris(object):
         return auxmol
 
 
-    def gen_eri2c_eri3c(self, mol, auxmol, omega_RSH=0):
+    def gen_eri2c_eri3c(self, mol, auxmol, omega=0):
 
         '''
         Total number of contracted GTOs for the mole and auxmol object
         '''
-        nao = mol.nao_nr()
-        naux = auxmol.nao_nr()
-        # print('nao,naux', nao,naux)
-        # print('mol.cart',mol.cart)
-        # print('auxmol.cart',mol.cart)
-        mol.set_range_coulomb(omega_RSH)
-        auxmol.set_range_coulomb(omega_RSH)
+        # nao = mol.nao_nr()
+        # naux = auxmol.nao_nr()
+
+        mol.set_range_coulomb(omega)
+        auxmol.set_range_coulomb(omega)
 
         '''
         (pq|rs) = Σ_PQ (pq|P)(P|Q)^-1(Q|rs)
@@ -161,20 +183,17 @@ class TDDFT_ris(object):
         '''
         pmol = mol + auxmol
         pmol.cart = self.mol.cart
-        # print('auxmol.nbas',auxmol.nbas)
         print('auxmol.cart =',mol.cart)
-        # print('pmol.nao_nr()',pmol.nao_nr())
-        # print('pmol.cart',pmol.cart)
 
         eri3c = pmol.intor('int3c2e'+tag,
                             shls_slice=(0,mol.nbas,0,mol.nbas,
                             mol.nbas,mol.nbas+auxmol.nbas))
         
-        print('Two center ERI shape', eri2c.shape)
+        print('Three center ERI shape', eri3c.shape)
 
         return eri2c, eri3c
 
-    def gen_eri2c_eri3c_RSH(self, mol, auxmol, eri2c_ex, eri3c_ex, alpha_RSH, beta_RSH, omega_RSH):
+    def gen_eri2c_eri3c_RSH(self, mol, auxmol, eri2c_ex, eri3c_ex, alpha, beta, omega):
 
         '''
         in the RSH functional, the Exchange ERI splits into two parts
@@ -185,9 +204,9 @@ class TDDFT_ris(object):
             (ij|alpha + beta*erf(omega)/r|ab) = alpha (ij|r|ab) + beta*(ij|erf(omega)/r|ab)
         '''            
         print('2c2e and 3c2e for RSH RI-K (ij|ab)')
-        eri2c_erf, eri3c_erf = self.gen_eri2c_eri3c(mol=mol, auxmol=auxmol, omega_RSH=omega_RSH)
-        eri2c_ex = alpha_RSH*eri2c_ex + beta_RSH*eri2c_erf
-        eri3c_ex = alpha_RSH*eri3c_ex + beta_RSH*eri3c_erf
+        eri2c_erf, eri3c_erf = self.gen_eri2c_eri3c(mol=mol, auxmol=auxmol, omega=omega)
+        eri2c_ex = alpha*eri2c_ex + beta*eri2c_erf
+        eri3c_ex = alpha*eri3c_ex + beta*eri3c_erf
             
         return eri2c_ex, eri3c_ex
 
@@ -249,7 +268,7 @@ class TDDFT_ris(object):
         long-range part  (ij|alpha + beta*erf(omega)/r|ab) = alpha (ij|r|ab) + beta*(ij|erf(omega)/r|ab)
         ''' 
 
-        if self.hybrid == True:
+        if self.a_x != 0 and self.omega == None:
             '''
             for usual hybrid functional, the Coulomb and Exchange ERI
             share the same eri2c and eri3c,
@@ -262,18 +281,26 @@ class TDDFT_ris(object):
             B_ia_cl = B_ia
             B_ia_ex, B_ij_ex, B_ab_ex = B_ia, B_ij, B_ab
 
-        elif self.RSH == True:
+        elif self.omega:
             '''
             for range-saparated hybrid functional, the Coulomb and Exchange ERI
-            use different eri2c and eri3c,
+            use modified eri2c and eri3c,
+            eri2c -> eri2c_ex
+            eri3c -> eri3c_ex
             '''            
-            eri2c_ex, eri3c_ex = self.gen_eri2c_eri3c_RSH(mol=mol,
-                                                        auxmol=auxmol,
-                                                        eri2c_ex=eri2c, 
-                                                        eri3c_ex=eri3c,
-                                                        alpha_RSH=self.alpha_RSH, 
-                                                        beta_RSH=self.beta_RSH,
-                                                        omega_RSH=self.omega_RSH)  
+            # eri2c_ex, eri3c_ex = self.gen_eri2c_eri3c_RSH(mol=mol,
+            #                                             auxmol=auxmol,
+            #                                             eri2c_ex=eri2c, 
+            #                                             eri3c_ex=eri3c,
+            #                                             alpha=self.alpha, 
+            #                                             beta=self.beta,
+            #                                             omega=self.omega) 
+
+            print('2c2e and 3c2e for RSH RI-K (ij|ab)')
+            eri2c_erf, eri3c_erf = self.gen_eri2c_eri3c(mol=mol, auxmol=auxmol, omega=self.omega)
+            eri2c_ex = self.alpha*eri2c + self.beta*eri2c_erf
+            eri3c_ex = self.alpha*eri3c + self.beta*eri3c_erf 
+
             B_ia_cl = self.gen_B(uvQL=uvQL,
                                  n_occ=n_occ, 
                                  mo_coeff=mo_coeff,
@@ -370,7 +397,7 @@ class TDDFT_ris(object):
 
         mol = self.mol
         auxmol = self.gen_auxmol(theta=self.theta, add_p=self.add_p)
-        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega_RSH=0)
+        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega=0)
         uvQL = self.gen_uvQL(eri2c=eri2c, eri3c=eri3c)
 
         hdiag_fly, hdiag = self.gen_hdiag_fly(mo_energy=mo_energy,  
@@ -436,7 +463,7 @@ class TDDFT_ris(object):
 
         mol = self.mol
         auxmol = self.gen_auxmol(theta=self.theta, add_p=self.add_p)
-        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega_RSH=0)
+        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega=0)
         uvQL = self.gen_uvQL(eri2c=eri2c, eri3c=eri3c)
 
         '''hdiag_fly will be used in both RKS and UKS'''
@@ -540,7 +567,7 @@ class TDDFT_ris(object):
 
         mol = self.mol
         auxmol = self.gen_auxmol(theta=self.theta, add_p=self.add_p)
-        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega_RSH=0)
+        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega=0)
         uvQL = self.gen_uvQL(eri2c=eri2c, eri3c=eri3c)
 
         hdiag_a_fly, hdiag_a = self.gen_hdiag_fly(mo_energy=mo_energy[0], n_occ=n_occ_a, n_vir=n_vir_a)
@@ -610,13 +637,13 @@ class TDDFT_ris(object):
         elif a_x == 0:
             ''' UKS TDA pure '''
             B_ia_alpha = self.gen_B(uvQL=uvQL,
-                            n_occ=n_occ_a, 
-                            mo_coeff=mo_coeff[0],
-                            calc='coulomb_only')
+                                    n_occ=n_occ_a, 
+                                    mo_coeff=mo_coeff[0],
+                                    calc='coulomb_only')
             B_ia_beta = self.gen_B(uvQL=uvQL,
-                            n_occ=n_occ_b, 
-                            mo_coeff=mo_coeff[1],
-                            calc='coulomb_only')
+                                    n_occ=n_occ_b, 
+                                    mo_coeff=mo_coeff[1],
+                                    calc='coulomb_only')
             
             iajb_aa_fly = self.gen_iajb_fly(B_left=B_ia_alpha, B_right=B_ia_alpha)
             iajb_ab_fly = self.gen_iajb_fly(B_left=B_ia_alpha, B_right=B_ia_beta)
@@ -669,7 +696,7 @@ class TDDFT_ris(object):
         ''' 
         mol = self.mol
         auxmol = self.gen_auxmol(theta=self.theta, add_p=self.add_p)
-        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega_RSH=0)
+        eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega=0)
         uvQL = self.gen_uvQL(eri2c=eri2c, eri3c=eri3c)
         '''
         _aa_fly means alpha-alpha spin
@@ -680,7 +707,6 @@ class TDDFT_ris(object):
 
         hdiag_a_fly, hdiag_a = self.gen_hdiag_fly(mo_energy=mo_energy[0], n_occ=n_occ_a, n_vir=n_vir_a)
         hdiag_b_fly, hdiag_b = self.gen_hdiag_fly(mo_energy=mo_energy[1], n_occ=n_occ_b, n_vir=n_vir_b)
-
         hdiag = np.vstack((hdiag_a.reshape(-1,1), hdiag_b.reshape(-1,1))).reshape(-1)
 
         if a_x != 0:
@@ -699,8 +725,6 @@ class TDDFT_ris(object):
                                                                                             eri2c=eri2c,
                                                                                             n_occ=n_occ_b,
                                                                                             mo_coeff=mo_coeff[1])
-
-
 
             iajb_aa_fly = self.gen_iajb_fly(B_left=B_ia_cl_alpha, B_right=B_ia_cl_alpha)
             iajb_ab_fly = self.gen_iajb_fly(B_left=B_ia_cl_alpha, B_right=B_ia_cl_beta)
