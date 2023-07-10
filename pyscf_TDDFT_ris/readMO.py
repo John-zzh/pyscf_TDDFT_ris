@@ -22,7 +22,7 @@ def get_mf_from_fch(fch_file: str, functional: str = None):
     print(mol.atom)
 
     # [print(k, v) for k, v in mol.basis.items()]
-    mf.mo_coeff = mo_coeff
+    
     if mo_coeff.ndim == 2:
         print('Restricted Kohn-Sham')
         mf = dft.RKS(mol)
@@ -37,7 +37,7 @@ def get_mf_from_fch(fch_file: str, functional: str = None):
                                 [1] * nocc_b + [0] * (nbf - nocc_b)])
     else:
         raise ValueError('Unknown dimension of mo_coeff: {}'.format(mo_coeff.ndim))
-    
+    mf.mo_coeff = mo_coeff
     mf.mo_energy = mo_energy
     mf.xc = functional
     return mf

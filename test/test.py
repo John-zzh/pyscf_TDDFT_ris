@@ -2,7 +2,7 @@ import numpy as np
 from pyscf import gto,  dft
 from pyscf_TDDFT_ris import TDDFT_ris
 
-def gen_mol():
+def gen_mf(RKS, func, charge=0, spin=0):
     mol = gto.Mole()
     mol.verbose = 3
     mol.atom = '''
@@ -15,10 +15,7 @@ def gen_mol():
     '''
     mol.basis = 'def2-SVP'
     mol.build()
-    return mol
 
-def gen_mf(RKS, func, charge=0, spin=0):
-    mol = gen_mol()
     if RKS:
         mf = dft.RKS(mol)
     else:
@@ -33,93 +30,193 @@ def gen_mf(RKS, func, charge=0, spin=0):
     mf.kernel()
     return mf
 
+
+def print_list(list):
+    print('[', end='')
+    for i in list:
+        print(i, end=', ')
+    print(']')
+    print()
+
+def diff(a,b):
+    a = np.asarray(a)
+    b = np.asarray(b)
+    diff = np.linalg.norm(a-b)
+    print(diff, diff<1e-5)
+    if diff > 1e-5:
+        raise ValueError('wrong results generated')
+    # return diff
+
+
+
 def main():
-    mol = gen_mol()
-    '''
-        RKS 
-    '''
+    res={}
+    res['RKS_pbe_TDA_ene']=[6.391337036766483, 7.727736771208482, 8.340518691575443, 8.808272662133794, 9.030071732629553, 9.649731438960863, 10.112653089947635, 10.6661241433674, 10.82618709448345, 10.94062217252083]
+    res['RKS_pbe_TDA_spc']=[0.002250080569749848, 0.024860626796076726, 0.005520041744598628, 0.02167853938250973, 0.050052098699082365, 0.09100119713743063, 0.0004638288497904391, 0.03490304377710013, 0.01810883404564871, 0.11177763514018192]
+
+    res['RKS_pbe_TDDFT_ene']=[6.388712243217593, 7.722596952015948, 8.317118082941937, 8.800279867352872, 9.003292541867337, 9.62323098434012, 10.111323800675956, 10.652787546396684, 10.816234689685365, 10.898194552652988] 
+    res['RKS_pbe_TDDFT_spc']=[0.05135560754926405, 0.34315487079267054, 0.05799648870943296, 0.23663289419660366, 0.5586229416606996, 0.8211228461781268, 0.005529995610537597, 0.27664355034512295, 0.13310004939861306, 0.7726414574091091]
+
+    res['RKS_pbe0_TDA_ene']=[7.097018627234927, 8.794054508573467, 9.098155376308503, 9.847267859018668, 10.072842892642461, 10.50075087912975, 10.77129403823725, 11.58517494579172, 11.645408335392746, 11.860285837966382]
+    res['RKS_pbe0_TDA_spc']=[0.0016598202890611687, 0.05060318093802627, 0.0060112846847340164, 0.023492325015694607, 0.056696587735609136, 0.15401547393868073, 0.006235152632582355, 0.0727913082653769, 0.024902926330408956, 0.14788532792421868]
+
+    res['RKS_pbe0_TDDFT_ene']=[7.093882111456887, 8.786377038782907, 9.07683721963022, 9.840151658142196, 10.045276834286607, 10.474034332889879, 10.765072347701429, 11.565624341839296, 11.641141860600381, 11.805778194549802]
+    res['RKS_pbe0_TDDFT_spc']=[0.0012757043082446849, 0.0466835106024071, 0.005276813715839302, 0.020619896132278288, 0.055055943190518646, 0.13645552747311857, 0.0054222403037118404, 0.06613229366726169, 0.022033548843186326, 0.13632967127157392]
+
+    res['RKS_wb97x_TDA_ene']=[7.385911176618056, 9.504617673378382, 9.515563113925236, 10.464678571783914, 10.761552107622874, 11.042870566010452, 11.150474149292164, 12.177940149643987, 12.220026304501042, 12.454224432384756]
+    res['RKS_wb97x_TDA_spc']=[0.0009369273379025906, 0.07372964112083992, 0.004116010850676041, 0.019652959484221046, 0.07221394818126496, 0.18958120157396943, 0.01583996735076162, 0.011732581247642909, 0.10935768241531149, 0.2124429524988815]
+
+    res['RKS_wb97x_TDDFT_ene'] = [7.382996952815185, 9.493111644704317, 9.496350313956572, 10.458818721065613, 10.729397345512368, 11.021744554071587, 11.140692725490045, 12.172799158694682, 12.196269740796243, 12.395434222684072]
+    res['RKS_wb97x_TDDFT_spc'] = [0.0006916521697295814, 0.0036381545119441513, 0.06895820694535056, 0.017501687919707763, 0.0739242834483152, 0.16733215922458056, 0.013774103374428385, 0.009486234006989303, 0.098563678187557, 0.19548415522044307]
 
 
-    ''' pbe '''
-    print('======================================= RKS pbe TDA-ris =======================================')
-    mf = gen_mf(RKS=True, func='pbe', charge=0, spin=0)
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, oscillator_strength = td.kernel_TDA()
-    print(energies, oscillator_strength)
-    standard = []
+    res['UKS_pbe_TDA_ene']=[1.483963778598052, 4.099731343007575, 6.042077048481587, 6.691299585099439, 9.801681665134955, 9.946248508827065, 9.992224781839704, 10.339323415696011, 12.081216043877998, 12.147808834323701]
+    res['UKS_pbe_TDA_spc']=[0.0002770099154354904, 0.00048683852519745103, 0.12876672685788404, 0.013795669440839278, 0.0001636862648334754, 0.003622434380995477, 0.0003570338047231752, 0.027945731744866215, 0.0013766053598939481, 0.025923221522235463]
 
-    print('======================================= RKS pbe TDDFT-ris =======================================')
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, Y, oscillator_strength = td.kernel_TDDFT()
-    standard = []  
+    res['UKS_pbe_TDDFT_ene']= [1.4677594745685272, 4.09913049595788, 5.538681755105241, 6.6589560813707465, 9.800357825462727, 9.932134474004052, 9.992095480814076, 10.311037517482896, 12.080908467668143, 12.143126046039484]
+    res['UKS_pbe_TDDFT_spc']=[0.21948085567778378, 0.017388355154404643, 4.130278677348505, 0.30268878383858355, 0.0017821436009853463, 0.02630834280350075, 0.003318450676536879, 0.24222412600133642, 0.008814907306201296, 0.1446201582896123]
 
+    res['UKS_pbe0_TDA_ene']=[1.8087589919782452, 4.405998297362837, 5.72302982858523, 6.92662003448187, 10.481419712347002, 10.63128573558761, 10.782950917081239, 11.23327456870174, 12.668737025010973, 12.681847067062224]
+    res['UKS_pbe0_TDA_spc']=[0.0001657568385854985, 0.001076181852041418, 0.12111409902871455, 0.011301537524469637, 8.610279495946372e-05, 0.0030344766658605064, 0.0014924564272755585, 0.027662168245754536, 0.009330311094434413, 7.336079775827479e-06]
 
-    ''' pbe0 '''
-    print('======================================= RKS pbe0 TDA-ris =======================================')
-    mf = gen_mf(RKS=True, func='pbe0', charge=0, spin=0)
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, oscillator_strength = td.kernel_TDA()
-    standard = []
+    res['UKS_pbe0_TDDFT_ene']=[1.7942558935943167, 4.3977767134727275, 5.400199237079016, 6.896833487311187, 10.47866239615581, 10.621547843026367, 10.781601271341614, 11.20807454635799, 12.662671164284594, 12.680077165587111]
+    res['UKS_pbe0_TDDFT_spc']=[3.349443421396765e-05, 0.0010872607187901665, 0.0770981778826746, 0.007894982491473182, 0.0001509349609445147, 0.0032931485229418397, 0.0014241487059804376, 0.022564345593069635, 0.009241371630422714, 8.096157694307589e-06]
 
-    print('======================================= RKS pbe0 TDDFT-ris =======================================')
-    energies, X, Y, oscillator_strength = td.kernel_TDDFT()
-    standard = []
+    res['UKS_wb97x_TDA_ene']=[1.7801959249879324, 4.366274710265926, 5.630072600091703, 6.863280584494665, 10.960569116608673, 11.086243641692363, 11.141070826270319, 11.44658612100384, 13.04900918223636, 13.052876348291248]
+    res['UKS_wb97x_TDA_spc']=[0.0001310268269702344, 0.0012363348261031622, 0.1202749786520348, 0.010936137627666015, 1.7928572229891145e-05, 0.0007151939265619905, 0.0018611629224512599, 0.032169117965574145, 0.006232586599722929, 0.0010126781058545358]
 
-
-    ''' wb97x '''
-    print('======================================= RKS wb97x TDA-ris =======================================')
-    mf = gen_mf(RKS=True, func='wb97x', charge=0, spin=0)
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, oscillator_strength = td.kernel_TDA()
-    standard = []
-
-    print('======================================= RKS wb97x TDDFT-ris =======================================')
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, Y, oscillator_strength = td.kernel_TDDFT()
-    standard = []   
+    res['UKS_wb97x_TDDFT_ene'] = [1.763067543956076, 4.353080374822271, 5.3338409882235025, 6.832369369409955, 10.95577150841456, 11.084260676422906, 11.130693620714675, 11.418990183153687, 13.03973729659376, 13.049827577160876]
+    res['UKS_wb97x_TDDFT_spc'] = [2.4956123757873378e-05, 0.0012283555854364617, 0.07938975994932368, 0.007720883972830806, 6.845912316793527e-05, 0.0007065956504526979, 0.002058534987298801, 0.026340830374532796, 0.006611670493927908, 0.001019094231403822]
 
 
 
 
-    '''
-        UKS 
-    '''
-    charge = 1
-    ''' pbe '''
-    print('======================================= UKS pbe TDA-ris =======================================')
-    mf = gen_mf(RKS=False, func='pbe', charge=charge, spin=1)
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, oscillator_strength = td.kernel_TDA()
-    standard = []
 
-    print('======================================= UKS pbe TDDFT-ris =======================================')
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, Y, oscillator_strength = td.kernel_TDDFT()
-    standard = []  
-
-    ''' pbe0 '''
-    print('======================================= UKS pbe0 TDA-ris =======================================')
-    mf = gen_mf(RKS=False, func='pbe0', charge=charge, spin=1)
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, oscillator_strength = td.kernel_TDA()
-    standard = []
-
-    print('======================================= UKS pbe0 TDDFT-ris =======================================')
-    energies, X, Y, oscillator_strength = td.kernel_TDDFT()
-    standard = []
+    for KS in ['RKS', 'UKS']:
+        for func in ['pbe', 'pbe0', 'wb97x']:
+            for calc in ['TDA', 'TDDFT']:
+                name = KS + '_' + func + '_' + calc
+                print('======================================= {} {} {}-ris ======================================='.format(KS, func, calc))
+                mf = gen_mf(RKS=True if KS=='RKS' else False, func=func, charge=0 if KS=='RKS' else 1, spin=0 if KS=='RKS' else 1)
+                td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+                if calc == 'TDA':
+                    energies, X, oscillator_strength = td.kernel_TDA()
+                elif  calc == 'TDDFT':
+                    energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+                print(name)
+                diff(energies, res[name+"_ene"])
+                diff(oscillator_strength, res[name+"_spc"])
 
 
-    ''' wb97x '''
-    print('====================================== UKS wb97x TDA-ris =======================================')
-    mf = gen_mf(RKS=False, func='wb97x', charge=charge, spin=1)
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, oscillator_strength = td.kernel_TDA()
-    standard = []
 
-    print('======================================= UKS wb97x TDDFT-ris =======================================')
-    td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
-    energies, X, Y, oscillator_strength = td.kernel_TDDFT()
-    standard = []   
+    # '''
+    #     RKS 
+    # '''
+
+
+    # ''' pbe '''
+    # print('======================================= RKS pbe TDA-ris =======================================')
+    # mf = gen_mf(RKS=True, func='pbe', charge=0, spin=0)
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, oscillator_strength = td.kernel_TDA()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []
+
+    # print('======================================= RKS pbe TDDFT-ris =======================================')
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []  
+
+
+    # ''' pbe0 '''
+    # print('======================================= RKS pbe0 TDA-ris =======================================')
+    # mf = gen_mf(RKS=True, func='pbe0', charge=0, spin=0)
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, oscillator_strength = td.kernel_TDA()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []
+
+    # print('======================================= RKS pbe0 TDDFT-ris =======================================')
+    # energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+    # print_list(energies) 
+    # print_list(oscillator_strength) 
+    # standard = []
+
+
+    # ''' wb97x '''
+    # print('======================================= RKS wb97x TDA-ris =======================================')
+    # mf = gen_mf(RKS=True, func='wb97x', charge=0, spin=0)
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, oscillator_strength = td.kernel_TDA()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []
+
+    # print('======================================= RKS wb97x TDDFT-ris =======================================')
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []   
+
+
+
+
+    # '''
+    #     UKS 
+    # '''
+    # charge = 1
+    # ''' pbe '''
+    # print('======================================= UKS pbe TDA-ris =======================================')
+    # mf = gen_mf(RKS=False, func='pbe', charge=charge, spin=1)
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, oscillator_strength = td.kernel_TDA()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []
+
+    # print('======================================= UKS pbe TDDFT-ris =======================================')
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []  
+
+    # ''' pbe0 '''
+    # print('======================================= UKS pbe0 TDA-ris =======================================')
+    # mf = gen_mf(RKS=False, func='pbe0', charge=charge, spin=1)
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, oscillator_strength = td.kernel_TDA()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []
+
+    # print('======================================= UKS pbe0 TDDFT-ris =======================================')
+    # energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []
+
+
+    # ''' wb97x '''
+    # print('====================================== UKS wb97x TDA-ris =======================================')
+    # mf = gen_mf(RKS=False, func='wb97x', charge=charge, spin=1)
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, oscillator_strength = td.kernel_TDA()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []
+
+    # print('======================================= UKS wb97x TDDFT-ris =======================================')
+    # td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
+    # energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+    # print_list(energies) 
+    # print_list(oscillator_strength)
+    # standard = []   
 
     
 if __name__ == '__main__':

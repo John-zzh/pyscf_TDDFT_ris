@@ -29,50 +29,50 @@ def gen_args():
     args = parser.parse_args()
 
 
-    if args.functional == None:
-        if args.a_x == None and args.omega == None and args.alpha == None and args.beta == None:
-            raise ValueError('Please specify the functional name or the functional parameters')
-        else:
-            if a_x:
-                args.a_x = a_x
-                print("hybrid functional")
-                print(f"manually input HF component ax = {a_x}")
+    # if args.functional == None:
+    #     if args.a_x == None and args.omega == None and args.alpha == None and args.beta == None:
+    #         raise ValueError('Please specify the functional name or the functional parameters')
+    #     else:
+    #         if a_x:
+    #             args.a_x = a_x
+    #             print("hybrid functional")
+    #             print(f"manually input HF component ax = {a_x}")
 
-            elif omega and alpha and beta:
-                args.a_x = 1
-                args.omega = omega
-                args.alpha = alpha
-                args.beta = beta
-                print("range-separated hybrid functional")
-                print(f"manually input ω = {args.omega}, screening factor")
-                print(f"manually input α = {args.alpha}, fixed HF exchange contribution")
-                print(f"manually input β = {args.beta}, variable part")
+    #         elif omega and alpha and beta:
+    #             args.a_x = 1
+    #             args.omega = omega
+    #             args.alpha = alpha
+    #             args.beta = beta
+    #             print("range-separated hybrid functional")
+    #             print(f"manually input ω = {args.omega}, screening factor")
+    #             print(f"manually input α = {args.alpha}, fixed HF exchange contribution")
+    #             print(f"manually input β = {args.beta}, variable part")
 
-            else:
-                raise ValueError('missing parameters for range-separated functional, please input (w, al, be)')
+    #         else:
+    #             raise ValueError('missing parameters for range-separated functional, please input (w, al, be)')
 
-    elif args.functional != None:
-        functional = args.functional.lower()
-        args.functional = functional
-        print('Loading defult functional paramters from parameter.py.')
+    # elif args.functional != None:
+    #     functional = args.functional.lower()
+    #     args.functional = functional
+    #     print('Loading defult functional paramters from parameter.py.')
 
-        if functional in parameter.rsh_func.keys():
-            '''
-            RSH functional, need omega, alpha, beta
-            '''
-            print('use range-separated hybrid functional')
-            omega, alpha, beta = parameter.rsh_func[functional]
-            args.a_x = 1
-            args.omega = omega
-            args.alpha = alpha
-            args.beta = beta
+    #     if functional in parameter.rsh_func.keys():
+    #         '''
+    #         RSH functional, need omega, alpha, beta
+    #         '''
+    #         print('use range-separated hybrid functional')
+    #         omega, alpha, beta = parameter.rsh_func[functional]
+    #         args.a_x = 1
+    #         args.omega = omega
+    #         args.alpha = alpha
+    #         args.beta = beta
 
-        elif functional in parameter.hbd_func.keys():
-            print('use hybrid functional')
-            args.a_x = parameter.hbd_func[functional]
+    #     elif functional in parameter.hbd_func.keys():
+    #         print('use hybrid functional')
+    #         args.a_x = parameter.hbd_func[functional]
 
-        else:
-            raise ValueError(f"I do not have paramters for functional {mf.xc} yet, please either manually input HF component a_x or add parameters in the parameter.py file.")
+    #     else:
+    #         raise ValueError(f"I do not have paramters for functional {mf.xc} yet, please either manually input HF component a_x or add parameters in the parameter.py file.")
 
     return args
 
@@ -102,7 +102,6 @@ if __name__ == '__main__':
                             conv_tol=args.conv_tol,
                             nroots=args.nroots, 
                             max_iter=args.max_iter)
-
 
     if args.TDA == True:
         energies, X, oscillator_strength = td.kernel_TDA()

@@ -20,7 +20,7 @@ def Davidson(matrix_vector_product,
     D_start = time.time()
 
     A_size = hdiag.shape[0]
-
+    print('size of A matrix =', A_size)
     size_old = 0
     size_new = min([N_states + 8, 2 * N_states, A_size])
 
@@ -36,10 +36,9 @@ def Davidson(matrix_vector_product,
     # V_holder[:,:size_new] = initial_vectors[:,:]
 
     MVcost = 0
+    print('step maximum residual norm')
     for ii in range(max_iter):
     
-        istart = time.time()
-
         MV_start = time.time()
         W_holder[:, size_old:size_new] = matrix_vector_product(V_holder[:,size_old:size_new])
         MV_end = time.time()
@@ -63,15 +62,8 @@ def Davidson(matrix_vector_product,
 
         r_norms = np.linalg.norm(residual, axis=0).tolist()
         max_norm = np.max(r_norms)
-
-        print('step ', ii+1, 'max_norm =', max_norm)
+        print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
         if max_norm < conv_tol or ii == (max_iter-1):
-            iend = time.time()
-            icost = iend - istart
-
-            print('iteration MV time {:.2f} seconds'.format(iMVcost))
-            print('iteration total time {:.2f} seconds'.format(icost))
-            print('Davidson Diagonalization Done')
             break
 
         index = [r_norms.index(i) for i in r_norms if i>conv_tol]
@@ -83,9 +75,6 @@ def Davidson(matrix_vector_product,
         size_old = size_new
         V_holder, size_new = math_helper.Gram_Schmidt_fill_holder(V_holder, size_old, new_guess)
 
-        iend = time.time()
-        icost = iend - istart
-
     # energies = sub_eigenvalue*parameter.Hartree_to_eV
 
     D_end = time.time()
@@ -94,8 +83,7 @@ def Davidson(matrix_vector_product,
     if ii == max_iter-1:
         print('=== TDA Failed Due to Iteration Limit ===')
         print('current residual norms', r_norms)
-    else:
-        print('========== TDA Calculation Done==========')
+        
     # print('energies:')
     # print(energies)
     print('Maximum residual norm = {:.2e}'.format(max_norm))
@@ -103,6 +91,7 @@ def Davidson(matrix_vector_product,
     print('Final subspace size = {:d}'.format(sub_A.shape[0]))
     print('Total Matrix-vector product cost {:.2f} seconds'.format(MVcost))
 
+    print('========== TDA Calculation Done==========')
     return sub_eigenvalue, full_guess
 
 
@@ -120,7 +109,7 @@ def Davidson_Casida(matrix_vector_product,
 
     TD_start = time.time()
     A_size = hdiag.shape[0]
-
+    print('size of A matrix =', A_size)
     size_old = 0
     size_new = N_states
 
@@ -159,6 +148,7 @@ def Davidson_Casida(matrix_vector_product,
     subgencost = 0
     full_cost = 0
 
+    print('step maximum residual norm')
     for ii in range(max_iter):
 
         V = V_holder[:,:size_new]
@@ -237,7 +227,7 @@ def Davidson_Casida(matrix_vector_product,
         residual = np.vstack((R_x, R_y))
         r_norms = np.linalg.norm(residual, axis=0).tolist()
         max_norm = np.max(r_norms)
-        print('step ', ii+1, 'max_norm =', max_norm)
+        print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
         if max_norm < conv_tol or ii == (max_iter -1):
             break
 
@@ -276,8 +266,6 @@ def Davidson_Casida(matrix_vector_product,
     if ii == (max_iter -1):
         print('=== TDDFT eigen solver Failed Due to Iteration Limit ===')
         print('current residual norms', r_norms)
-    else:
-        print('======= TDDFT eigen solver Done =======' )
 
     print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, TD_cost))
     print('final subspace', sub_A.shape[0])
@@ -285,7 +273,7 @@ def Davidson_Casida(matrix_vector_product,
     for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
         print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/TD_cost))
-
+    print('======= TDDFT eigen solver Done =======' )
     # energies = omega*parameter.Hartree_to_eV
 
     return omega, X_full, Y_full
