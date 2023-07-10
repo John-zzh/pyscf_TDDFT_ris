@@ -45,6 +45,7 @@ def main():
     mf = gen_mf(RKS=True, func='pbe', charge=0, spin=0)
     td = TDDFT_ris.TDDFT_ris(mf, nroots = 10)
     energies, X, oscillator_strength = td.kernel_TDA()
+    print(energies, oscillator_strength)
     standard = []
 
     print('======================================= RKS pbe TDDFT-ris =======================================')
