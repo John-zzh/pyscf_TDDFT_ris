@@ -18,6 +18,7 @@ class TDDFT_ris(object):
                 conv_tol: float = 1e-5,
                 nroots: int = 5,
                 max_iter: int = 25,
+                spectra: bool = True,
                 pyscf_TDDFT_vind: callable = None):
         '''
         add_p: whether add p orbital to aux basis
@@ -34,6 +35,7 @@ class TDDFT_ris(object):
         self.max_iter = max_iter
         self.mol = mf.mol
         self.pyscf_TDDFT_vind = pyscf_TDDFT_vind
+        self.spectra = spectra
 
         if hasattr(mf, 'xc'):
             functional = mf.xc.lower()
@@ -1090,20 +1092,25 @@ class TDDFT_ris(object):
                 TDDFT_pure_mv, hdiag_sq = self.gen_UKS_TDDFT_mv()
                 P = self.gen_UKS_P()
             # print('min(hdiag_sq)', min(hdiag_sq)**0.5*parameter.Hartree_to_eV)
-            energies, Z = eigen_solver.Davidson(TDDFT_pure_mv, hdiag_sq,
+            energies_sq, Z = eigen_solver.Davidson(TDDFT_pure_mv, hdiag_sq,
                                                 N_states = self.nroots,
                                                 conv_tol = self.conv_tol,
                                                 max_iter = self.max_iter)
-            energies = energies**0.5
+            
+            # print('check norm of Z', np.linalg.norm(np.dot(Z.T,Z) - np.eye(Z.shape[1])))
+            energies = energies_sq**0.5
+            Z = Z*energies**0.5
 
             X, Y = eigen_solver.XmY_2_XY(Z=Z, AmB_sq=hdiag_sq, omega=energies)
 
+        print('check norm of X^TX - Y^YY = {:.3e}'.format(np.linalg.norm( (np.dot(X.T,X) - np.dot(Y.T,Y)) -np.eye(self.nroots) )))
         energies = energies*parameter.Hartree_to_eV
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
-                                                       transition_vector= X+Y, 
-                                                       P=P, 
-                                                       name='TDDFT-ris', 
-                                                       RKS=self.RKS)
+                                                    transition_vector= X+Y, 
+                                                    P=P, 
+                                                    name='TDDFT-ris', 
+                                                    spectra=self.spectra,
+                                                    RKS=self.RKS)
         # print('energies =', energies)
         return energies, X, Y, oscillator_strength
     

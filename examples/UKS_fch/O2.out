@@ -1,0 +1,87 @@
+
+
+******** <class 'pyscf.dft.uks.UKS'> ********
+method = UKS
+initial guess = minao
+damping factor = 0
+level_shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+diis_start_cycle = 1
+diis_space = 8
+SCF conv_tol = 1e-09
+SCF conv_tol_grad = None
+SCF max_cycles = 1
+direct_scf = True
+direct_scf_tol = 1e-13
+chkfile to save SCF result = /scratch/jxzou/tmpe7n2fwip
+max_memory 4000 MB (current use 64 MB)
+number electrons alpha = 9  beta = 7
+XC library pyscf.dft.libxc version 5.2.0
+    S. Lehtola, C. Steigemann, M. J. Oliveira, and M. A. Marques, SoftwareX 7, 1 (2018)
+XC functionals = camb3lyp
+    T. Yanai, D. P. Tew, and N. C. Handy, Chem. Phys. Lett. 393, 51 (2004)
+radial grids: 
+    Treutler-Ahlrichs [JCP 102, 346 (1995); DOI:10.1063/1.469408] (M4) radial grids
+    
+becke partition: Becke, JCP 88, 2547 (1988); DOI:10.1063/1.454033
+pruning grids: <function nwchem_prune at 0x2b725c120320>
+grids dens level: 3
+symmetrized grids: False
+atomic radii adjust function: <function treutler_atomic_radii_adjust at 0x2b725c1207a0>
+User specified grid scheme (99, 590)
+small_rho_cutoff = 1e-07
+Set gradient conv threshold to 3.16228e-05
+tot grids = 63112
+init E= -150.571471112141
+  alpha nocc = 9  HOMO = -0.234822208346663  LUMO = 0.214284293629483
+  beta  nocc = 7  HOMO = -0.586603958319622  LUMO = -0.234822208346663
+
+WARN: system HOMO -0.234822208346663 >= system LUMO -0.234822208346663
+
+cycle= 1 E= -150.327393164361  delta_E= 0.244  |g|= 0.202  |ddm|= 1.04
+SCF not converged.
+SCF energy = -150.327393164361 after 1 cycles  <S^2> = 2  2S+1 = 3
+
+
+******** <class 'pyscf.dft.uks.UKS'> ********
+method = UKS
+initial guess = minao
+damping factor = 0
+level_shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+diis_start_cycle = 1
+diis_space = 8
+SCF conv_tol = 1e-09
+SCF conv_tol_grad = None
+SCF max_cycles = 10
+direct_scf = True
+direct_scf_tol = 1e-13
+chkfile to save SCF result = /scratch/jxzou/tmpe7n2fwip
+max_memory 4000 MB (current use 174 MB)
+number electrons alpha = 9  beta = 7
+XC library pyscf.dft.libxc version 5.2.0
+    S. Lehtola, C. Steigemann, M. J. Oliveira, and M. A. Marques, SoftwareX 7, 1 (2018)
+XC functionals = camb3lyp
+    T. Yanai, D. P. Tew, and N. C. Handy, Chem. Phys. Lett. 393, 51 (2004)
+radial grids: 
+    Treutler-Ahlrichs [JCP 102, 346 (1995); DOI:10.1063/1.469408] (M4) radial grids
+    
+becke partition: Becke, JCP 88, 2547 (1988); DOI:10.1063/1.454033
+pruning grids: <function nwchem_prune at 0x2b725c120320>
+grids dens level: 3
+symmetrized grids: False
+atomic radii adjust function: <function treutler_atomic_radii_adjust at 0x2b725c1207a0>
+User specified grid scheme (99, 590)
+small_rho_cutoff = 1e-07
+Set gradient conv threshold to 3.16228e-05
+init E= -150.343102144946
+  alpha nocc = 9  HOMO = -0.373160751782031  LUMO = 0.253383015251447
+  beta  nocc = 7  HOMO = -0.554541486412051  LUMO = -0.04444090050678
+cycle= 1 E= -150.343102152298  delta_E= -7.35e-09  |g|= 2.02e-08  |ddm|= 4.91e-07
+  alpha nocc = 9  HOMO = -0.373160762546882  LUMO = 0.253383008463549
+  beta  nocc = 7  HOMO = -0.554541494900099  LUMO = -0.0444409083523345
+cycle= 2 E= -150.343102152298  delta_E= 2.84e-14  |g|= 1.23e-08  |ddm|= 4.46e-08
+  alpha nocc = 9  HOMO = -0.373160756907911  LUMO = 0.253383011631761
+  beta  nocc = 7  HOMO = -0.554541488499426  LUMO = -0.0444409024055136
+Extra cycle  E= -150.343102152298  delta_E= -5.68e-14  |g|= 1.56e-08  |ddm|= 1.14e-08
+converged SCF energy = -150.343102152298  <S^2> = 2.0086431  2S+1 = 3.0057566
