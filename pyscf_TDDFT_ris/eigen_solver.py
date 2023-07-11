@@ -6,9 +6,9 @@ import time
 
 def Davidson(matrix_vector_product,
                     hdiag,
-                    N_states = 20,
-                    conv_tol = 1e-5,
-                    max_iter = 25 ):
+                    N_states=20,
+                    conv_tol=1e-5,
+                    max_iter=25 ):
     '''
     AX = XΩ
     Davidson frame, can use different initial guess and preconditioner
@@ -97,9 +97,9 @@ def Davidson(matrix_vector_product,
 
 def Davidson_Casida(matrix_vector_product,
                         hdiag,
-                        N_states = 20,
-                        conv_tol = 1e-5,
-                        max_iter = 25 ):
+                        N_states=20,
+                        conv_tol=1e-5,
+                        max_iter=25 ):
     '''
     [ A B ] X - [1   0] Y Ω = 0
     [ B A ] Y   [0  -1] X   = 0
@@ -245,13 +245,12 @@ def Davidson_Casida(matrix_vector_product,
         '''
         size_old = size_new
         GScost_start = time.time()
-        V_holder, W_holder, size_new = math_helper.VW_Gram_Schmidt_fill_holder(
-                                            V_holder = V_holder,
-                                            W_holder = W_holder,
-                                               X_new = X_new,
-                                               Y_new = Y_new,
-                                                   m = size_old,
-                                              double = False)
+        V_holder, W_holder, size_new = math_helper.VW_Gram_Schmidt_fill_holder(V_holder=V_holder,
+                                                                                W_holder=W_holder,
+                                                                                X_new=X_new,
+                                                                                Y_new=Y_new,
+                                                                                m=size_old,
+                                                                                double=False)
         GScost_end = time.time()
         GScost += GScost_end - GScost_start
 
@@ -278,7 +277,7 @@ def Davidson_Casida(matrix_vector_product,
 
     return omega, X_full, Y_full
 
-def gen_spectra(energies, transition_vector, P, name, RKS):
+def gen_spectra(energies, transition_vector, P, name, RKS, spectra=True):
     '''
     E = hν
     c = λ·ν
@@ -301,14 +300,14 @@ def gen_spectra(energies, transition_vector, P, name, RKS):
              [Pβ]   [Xβ]
 
         RKS: u = 2 P^T X
-        UKS: u = Pα^T Xα + Pβ^TXβ = P^T X (P = [Pα])
-                                               [Pβ]    
+        UKS: u = Pα^T Xα + Pβ^TXβ = P^T X (P = [Pα]  X = [Xα])
+                                               [Pβ]      [Xβ]
     TDDFT:
         RKS: u = 2 P^T X + 2 P^T Y = 2 P^T(X+Y)
-        UKS: u = Pα^T Xα + Pβ^TXβ + Qα^TYα + Qβ^T Yβ =  P^T(X+Y)  (P = [Pα])
-                                                                       [Pβ]     
-                                                                       [Qα]
-                                                                       [Qβ]
+        UKS: u = Pα^T Xα + Pβ^TXβ + Qα^TYα + Qβ^T Yβ =  P^T(X+Y)  (P = [Pα]  X = [Xα] )
+                                                                       [Pβ]      [Xβ]
+                                                                       [Qα]      [Yα]
+                                                                       [Qβ]      [Yβ] 
 
     for TDA,   f = 2/3 E 2*|<P|X>|**2                   
     for TDDFT, f = 2/3 E 2*|<P|X+Y>|**2     
@@ -348,17 +347,17 @@ def gen_spectra(energies, transition_vector, P, name, RKS):
     for row in range(data.shape[0]):
         print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
     print()
-
-    filename = name + '_UV_spectra.txt'
-    with open(filename, 'w') as f:
-        np.savetxt(f, data, fmt='%.8f', header='eV       nm           cm^-1         oscillator strength')
-    print('spectra data written to', filename)
+    if spectra:
+        filename = name + '_UV_spectra.txt'
+        with open(filename, 'w') as f:
+            np.savetxt(f, data, fmt='%.8f', header='eV       nm           cm^-1         oscillator strength')
+        print('spectra data written to', filename)
 
     return oscillator_strength
 
 
 def XmY_2_XY(Z, AmB_sq, omega):
-    '''given X, (A-B)^2, omega
+    '''given Z, (A-B)^2, omega
        return X, Y
 
         X-Y = (A-B)^-1/2 Z
@@ -366,13 +365,14 @@ def XmY_2_XY(Z, AmB_sq, omega):
     '''
     AmB_sq = AmB_sq.reshape(-1,1)
 
-    AmB_inv_sqrt = AmB_sq**(-0.25)
-    AmB_sqrt = AmB_sq**0.25
-    
-    XmY = AmB_inv_sqrt * Z
-    XpY = AmB_sqrt*XmY/omega
+    '''AmB = (A - B)'''
+    AmB = AmB_sq**0.5
+
+    XmY = AmB**(-0.5) * Z
+    XpY = (AmB * XmY)/omega
 
     X = (XpY + XmY)/2
     Y = (XpY - XmY)/2
 
     return X, Y
+
