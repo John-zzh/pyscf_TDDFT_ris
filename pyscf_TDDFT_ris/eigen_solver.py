@@ -1,7 +1,6 @@
 
 import numpy as np
 from pyscf_TDDFT_ris import parameter, math_helper
-from pyscf_TDDFT_ris.diag_ip import TDA_diag_initial_guess, TDA_diag_preconditioner, TDDFT_diag_preconditioner
 import time
 
 def Davidson(matrix_vector_product,
@@ -15,14 +14,14 @@ def Davidson(matrix_vector_product,
     initial_guess is a function, takes the number of initial guess as input
     preconditioner is a function, takes the residual as the input
     '''
-    print('====== TDA Calculation Starts ======')
+    print('====== Davidson Diagonalization Done ======')
 
     D_start = time.time()
 
     A_size = hdiag.shape[0]
     print('size of A matrix =', A_size)
     size_old = 0
-    size_new = min([N_states + 8, 2 * N_states, A_size])
+    size_new = min([N_states+8, 2*N_states, A_size])
 
     max_N_mv = max_iter*N_states + size_new
     V_holder = np.zeros((A_size, max_N_mv))
@@ -31,12 +30,16 @@ def Davidson(matrix_vector_product,
     '''
     generate the initial guesss and put into the basis holder V_holder
     '''
-    V_holder = TDA_diag_initial_guess(V_holder=V_holder, N_states=size_new, hdiag=hdiag)
+    V_holder = math_helper.TDA_diag_initial_guess(V_holder=V_holder, N_states=size_new, hdiag=hdiag)
 
     # V_holder[:,:size_new] = initial_vectors[:,:]
 
+    subcost = 0
     MVcost = 0
-    print('step maximum residual norm')
+    GScost = 0
+    subgencost = 0
+    full_cost = 0
+    print('step max||r||   sub_A.shape')
     for ii in range(max_iter):
     
         MV_start = time.time()
@@ -45,35 +48,51 @@ def Davidson(matrix_vector_product,
         iMVcost = MV_end - MV_start
         MVcost += iMVcost
 
+        subgencost_start = time.time()
         sub_A_holder = math_helper.gen_VW(sub_A_holder, V_holder, W_holder, size_old, size_new)
         sub_A = sub_A_holder[:size_new,:size_new]
+        subgencost_end = time.time()
+        subgencost += subgencost_end - subgencost_start
+        # sub_A = math_helper.utriangle_symmetrize(sub_A)
+        # sub_A = math_helper.symmetrize(sub_A)
 
         '''
         Diagonalize the subspace Hamiltonian, and sorted.
         sub_eigenvalue[:N_states] are smallest N_states eigenvalues
         '''
+
+        subcost_start = time.time()
         sub_eigenvalue, sub_eigenket = np.linalg.eigh(sub_A)
         sub_eigenvalue = sub_eigenvalue[:N_states]
         sub_eigenket = sub_eigenket[:,:N_states]
+        subcost_end = time.time()
+        subcost += subcost_end - subcost_start
 
+        full_cost_start = time.time()
         full_guess = np.dot(V_holder[:,:size_new], sub_eigenket)
+        full_cost_end = time.time()
+        full_cost += full_cost_end - full_cost_start
+
         AV = np.dot(W_holder[:,:size_new], sub_eigenket)
         residual = AV - full_guess * sub_eigenvalue
 
         r_norms = np.linalg.norm(residual, axis=0).tolist()
         max_norm = np.max(r_norms)
-        print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
+        print('{:<3d}  {:<10.4e} {:<5d}'.format(ii+1, max_norm, sub_A.shape[0]))
         if max_norm < conv_tol or ii == (max_iter-1):
             break
 
         index = [r_norms.index(i) for i in r_norms if i>conv_tol]
 
-        new_guess = TDA_diag_preconditioner(residual = residual[:,index],
+        new_guess = math_helper.TDA_diag_preconditioner(residual = residual[:,index],
                                             sub_eigenvalue = sub_eigenvalue[index],
                                             hdiag = hdiag)
 
+        GScost_start = time.time()
         size_old = size_new
-        V_holder, size_new = math_helper.Gram_Schmidt_fill_holder(V_holder, size_old, new_guess)
+        V_holder, size_new = math_helper.Gram_Schmidt_fill_holder(V_holder, size_old, new_guess, double=True)
+        GScost_end = time.time()
+        GScost += GScost_end - GScost_start
 
     # energies = sub_eigenvalue*parameter.Hartree_to_eV
 
@@ -86,14 +105,14 @@ def Davidson(matrix_vector_product,
         
     # print('energies:')
     # print(energies)
-    print('Maximum residual norm = {:.2e}'.format(max_norm))
     print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, Dcost))
+    print('Maximum residual norm = {:.2e}'.format(max_norm))
     print('Final subspace size = {:d}'.format(sub_A.shape[0]))
-    print('Total Matrix-vector product cost {:.2f} seconds'.format(MVcost))
-
-    print('========== TDA Calculation Done==========')
+    for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
+        cost = locals()[enrty]
+        print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/Dcost))
+    print('========== Davidson Diagonalization Done ==========')
     return sub_eigenvalue, full_guess
-
 
 def Davidson_Casida(matrix_vector_product,
                         hdiag,
@@ -131,15 +150,10 @@ def Davidson_Casida(matrix_vector_product,
     WW_holder = np.zeros_like(VU1_holder)
 
     '''
-    set up initial guess V W, transformed vectors U1 U2
+    set up initial guess V= TDA initila guess, W=0
     '''
 
-    # V_holder, W_holder = TDDFT_diag_initial_guess(V_holder = V_holder,
-    #                                                 W_holder = W_holder,
-    #                                                 N_states = size_new,
-    #                                                 hdiag = hdiag)
-    
-    V_holder = TDA_diag_initial_guess(V_holder = V_holder,
+    V_holder = math_helper.TDA_diag_initial_guess(V_holder = V_holder,
                                          N_states = N_states,
                                          hdiag = hdiag)
     subcost = 0
@@ -236,7 +250,7 @@ def Davidson_Casida(matrix_vector_product,
         '''
         preconditioning step
         '''
-        X_new, Y_new = TDDFT_diag_preconditioner(R_x = R_x[:,index],
+        X_new, Y_new = math_helper.TDDFT_diag_preconditioner(R_x = R_x[:,index],
                                                    R_y = R_y[:,index],
                                                  omega = omega[index],
                                                  hdiag = hdiag)

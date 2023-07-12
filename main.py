@@ -1,4 +1,4 @@
-from pyscf_TDDFT_ris import TDDFT_ris, readMO, parameter
+from pyscf_TDDFT_ris import TDDFT_ris, readMO
 import argparse
 
 def str2bool(str):
@@ -11,8 +11,9 @@ def str2bool(str):
 
 def gen_args():
     parser = argparse.ArgumentParser(description='Davidson')
-    parser.add_argument('-f',    '--fchfile',     type=str,   default='*.fch',   help='.fch filename (molecule.fch)')
-    parser.add_argument('-func', '--functional',  type=str,   default=None,      help='functional filename (pbe0)')
+    parser.add_argument('-f',    '--filename',     type=str,   default='*.fch',   help='.fch filename (molecule.fch)')
+    parser.add_argument('-func', '--functional',  type=str,   default=None,      help='functional name (pbe0)')
+    parser.add_argument('-b',    '--basis',       type=str,   default=None,      help='basis set name (def2-SVP)')
     parser.add_argument('-ax',   '--a_x',         type=float, default=None,      help='HF component in the hybrid functional')
     parser.add_argument('-w',    '--omega',       type=float, default=None,      help='screening factor in the range-separated functional')
     parser.add_argument('-al',   '--alpha',       type=float, default=None,      help='alpha in the range-separated functional')
@@ -27,52 +28,6 @@ def gen_args():
     parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
 
     args = parser.parse_args()
-
-
-    # if args.functional == None:
-    #     if args.a_x == None and args.omega == None and args.alpha == None and args.beta == None:
-    #         raise ValueError('Please specify the functional name or the functional parameters')
-    #     else:
-    #         if a_x:
-    #             args.a_x = a_x
-    #             print("hybrid functional")
-    #             print(f"manually input HF component ax = {a_x}")
-
-    #         elif omega and alpha and beta:
-    #             args.a_x = 1
-    #             args.omega = omega
-    #             args.alpha = alpha
-    #             args.beta = beta
-    #             print("range-separated hybrid functional")
-    #             print(f"manually input ω = {args.omega}, screening factor")
-    #             print(f"manually input α = {args.alpha}, fixed HF exchange contribution")
-    #             print(f"manually input β = {args.beta}, variable part")
-
-    #         else:
-    #             raise ValueError('missing parameters for range-separated functional, please input (w, al, be)')
-
-    # elif args.functional != None:
-    #     functional = args.functional.lower()
-    #     args.functional = functional
-    #     print('Loading defult functional paramters from parameter.py.')
-
-    #     if functional in parameter.rsh_func.keys():
-    #         '''
-    #         RSH functional, need omega, alpha, beta
-    #         '''
-    #         print('use range-separated hybrid functional')
-    #         omega, alpha, beta = parameter.rsh_func[functional]
-    #         args.a_x = 1
-    #         args.omega = omega
-    #         args.alpha = alpha
-    #         args.beta = beta
-
-    #     elif functional in parameter.hbd_func.keys():
-    #         print('use hybrid functional')
-    #         args.a_x = parameter.hbd_func[functional]
-
-    #     else:
-    #         raise ValueError(f"I do not have paramters for functional {mf.xc} yet, please either manually input HF component a_x or add parameters in the parameter.py file.")
 
     return args
 
@@ -89,8 +44,18 @@ if __name__ == '__main__':
 
     if manually specify the a_x or (omega, alpha, beta), then you dont have to input the functional name 
     '''
-    mf = readMO.get_mf_from_fch(fch_file = args.fchfile, 
-                                functional = args.functional)
+
+    ''' if args.filename ends with string .fch, use  get_mf_from_fch function '''
+
+    if args.filename[-4:] == '.fch' :
+        mf = readMO.get_mf_from_fch(fch_file=args.filename, 
+                                    functional=args.functional)
+    elif 'molden' in args.filename:
+        if args.basis == None:
+            raise ValueError('I need the basis set name, such as -b def2-TZVP. Because molden file does not provide correct basis set information.')
+        mf = readMO.get_mf_from_molden(molden_file=args.filename, 
+                                       functional=args.functional,
+                                       basis=args.basis)
     
     td = TDDFT_ris.TDDFT_ris(mf=mf, 
                             theta=args.theta,

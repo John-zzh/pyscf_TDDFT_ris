@@ -72,7 +72,17 @@ def get_mf_from_molden(molden_file, functional, basis):
     print('======= Molecular Coordinates ========')
     print(mol.atom)
 
-    mf = dft.RKS(mol)
+    if isinstance(mo_coeff, tuple):
+        mo_coeff = np.asarray(mo_coeff)
+    if isinstance(mo_energy, tuple):
+        mo_energy = np.asarray(mo_energy)
+
+    if mo_coeff.ndim == 2:
+        print('Restricted Kohn-Sham')
+        mf = dft.RKS(mol)
+    elif mo_coeff.ndim == 3:
+        print('Unrestricted Kohn-Sham')
+        mf = dft.UKS(mol)      
     mf.xc = functional
     mf.mo_occ = mo_occ
     mf.mo_coeff = mo_coeff

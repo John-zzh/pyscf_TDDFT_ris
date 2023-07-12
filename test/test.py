@@ -19,7 +19,7 @@ def gen_mf(RKS, func, charge=0, spin=0):
     if RKS:
         mf = dft.RKS(mol)
     else:
-        mf = dft.UKS(mol)
+        mf = dft.UKS(mol) 
 
     # mf = mf.density_fit()
     mf.conv_tol = 1e-10
@@ -85,7 +85,7 @@ def main():
     res['UKS_wb97x_TDDFT_ene'] = [1.763067543956076, 4.353080374822271, 5.3338409882235025, 6.832369369409955, 10.95577150841456, 11.084260676422906, 11.130693620714675, 11.418990183153687, 13.03973729659376, 13.049827577160876]
     res['UKS_wb97x_TDDFT_spc'] = [2.4956123757873378e-05, 0.0012283555854364617, 0.07938975994932368, 0.007720883972830806, 6.845912316793527e-05, 0.0007065956504526979, 0.002058534987298801, 0.026340830374532796, 0.006611670493927908, 0.001019094231403822]
 
-    nroots = 10
+    nroots = 20
     for KS in ['RKS', 'UKS']:
     # for KS in ['RKS']:
         for func in ['pbe', 'pbe0', 'wb97x']:
@@ -103,8 +103,9 @@ def main():
                 # print_list(energies)
                 # print_list(oscillator_strength)
                 print(name)
-                diff(energies, res[name+"_ene"][:nroots])
-                diff(oscillator_strength, res[name+"_spc"][:nroots])
+                compare_nroors = min(nroots, 10)
+                diff(energies[:compare_nroors], res[name+"_ene"][:compare_nroors])
+                diff(oscillator_strength[:compare_nroors], res[name+"_spc"][:compare_nroors])
    
 if __name__ == '__main__':
     main()
