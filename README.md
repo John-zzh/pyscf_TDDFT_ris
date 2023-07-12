@@ -4,6 +4,22 @@ This python package, based on PySCF, provides the semiempirical TDDFT-ris method
 
 Note: Turbomole has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
 
+## Theory
+In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris model [1,2]. This is model achieved by two steps:
+- approximate the two-electron integrals using resolution-of-the-identity technique (**RI**) with only one **$s$** type orbital per atom
+- disable the exchange-correlation kernel. 
+
+The exponents $\alpha_A$ of the **$s$** type orbital centered on atom $A$ is related to the tabulated semi-empirical atomic radii $R_A$. Only one global parameter $\theta$ was fine-tuned across various hybrid exchange-correlation functional.
+
+$\alpha_A = \frac{\theta}{R_A^2}$
+
+Compared to traditional ab initio TDDFT, for excitation energy calculations of organic molecules, the TDDFT-ris model provides a nearly negligible deviation of just 0.06 eV. Moreover, it offers a significant computational advantage, being ~300 times faster. This represents a considerable improvement over the [simplified TDDFT (sTDDFT) model](https://github.com/grimme-lab/stda), which shows an energy deviation of 0.24 eV.
+
+Owing to its similar structure to ab initio TDDFT, the TDDFT-ris model can be readily integrated into most quantum chemistry packages with virtually no additional implementation effort. Software packages such as [TURBOMOLE7.7dev](https://www.turbomole.org/turbomole/release-notes-turbomole-7-7/) and [Amespv1.1dev](https://amesp.xyz/) have already built-in the TDDFT-ris method.
+
+[ORCA5.2](https://orcaforum.kofo.mpg.de/app.php/portal) will support TDDFT-ris calculation in the next release.
+
+
 ## Requirements
 This project requires the following packages:
 - python >= 3.8.0
@@ -21,13 +37,13 @@ If any difficulty, please follow the [detailed PySCF installation guide](https:/
 ### (2) install MOKIT
 [MOKIT](https://gitlab.com/jxzou/mokit) is used to read the `.fch` file to initiate the TDDFT-ris calculation.
 
-### (a) MacOS 
+#### MacOS 
 For MacOS users, install MOKIT with `homebrew` is recommended:
 ```
 brew install mokit --HEAD --with-py38
 ```
 You can change `py38` to any other python version that you can import PySCF, such as py310 
-### (b) Linux 
+#### Linux 
 For Linux users, download a pre-compiled MOKIT version is most convenient. After downloading the pre-built artifacts, you need to set the following environment
 variables (assuming MOKIT is put in `$HOME/software/mokit`) in your `~/.bashrc`:
 ```
@@ -205,14 +221,6 @@ Feel free to test out larger molecules (20-99 atoms) in the `xyz_files_EXTEST42`
 I expect many bugs because I have not tested the robustness. Because I do not have Gaussian software to generate the `.fch` file :-)
 I would appreciate it if any user provide error information.
 
-## Theory
-In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris model [1,2]. This is model achieved by two steps:
-- approximate the two-electron repulsion integrals (ERI) using resolution-of-the-identity technique (RI) with only one $s$ type orbital per atom
-- disable the exchange-correlation kernel. The exponents of the fitting basis are related to semiempirical atomic radii, which are available across the periodic table. Only one global parameter was adjusted across various hybrid exchange-correlation functional.
-
-The TDDFT-ris model provides a nearly negligible deviation of just 0.06 eV for excitation energy calculations of organic molecules compared to traditional ab initio TDDFT. Moreover, it offers a significant computational advantage, being ~300 times faster with virtually no additional implementation effort. This represents a considerable improvement over the simplified TDDFT (sTDDFT) model, which shows a deviation of 0.24 eV.
-
-Owing to its similar structure to ab initio TDDFT, the TDDFT-ris model can be readily integrated into most quantum chemistry packages, such as TURBOMOLE.
 
 ## To do list
 
@@ -222,7 +230,7 @@ Owing to its similar structure to ab initio TDDFT, the TDDFT-ris model can be re
 4. Solvation model
 
 ## Acknowledgements
-Thank Dr. Zou for powerful MOKIT support. Thank gjj for the detailed guidance of MOKIT installaiton on MacOS system.
+Thank Dr. Zou (the developer of MOKIT) for powerful interface support. Thank gjj for the detailed guidance of MOKIT installaiton on MacOS system. Thank Dr. Zhang (the developer of Amesp) for cross validation with TDDFT-ris implementation. Thank Dr. Della Sala for the development of TDDFT-as prototype, and contribution to the development of the TDDFT-ris method [1, 2].
 
 ## Reference
 To cite the TDDFT-ris method:
