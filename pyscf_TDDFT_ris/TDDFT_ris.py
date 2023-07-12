@@ -1,10 +1,16 @@
 from pyscf import gto, lib, dft
 import numpy as np
+import multiprocessing as mp
 from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper
 
 np.set_printoptions(linewidth=250, threshold=np.inf)
 
 einsum = lib.einsum
+
+
+num_cores = int(mp.cpu_count())
+print("This job can use: " + str(num_cores) + "CPUs")
+
 
 
 class TDDFT_ris(object):
