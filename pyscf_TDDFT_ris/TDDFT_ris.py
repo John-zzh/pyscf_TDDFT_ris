@@ -994,7 +994,8 @@ class TDDFT_ris(object):
                                                        transition_vector= X, 
                                                        P=P, 
                                                        name='TDA-ris', 
-                                                       RKS=self.RKS)
+                                                       RKS=self.RKS,
+                                                       spectra=self.spectra)
 
         return energies, X, oscillator_strength
         # from pyscf.lib import davidson1
