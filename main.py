@@ -11,7 +11,7 @@ def str2bool(str):
 
 def gen_args():
     parser = argparse.ArgumentParser(description='Davidson')
-    parser.add_argument('-f',    '--filename',     type=str,   default='*.fch',   help='.fch filename (molecule.fch)')
+    parser.add_argument('-f',    '--filename',    type=str,   default=None,      help='.fch filename (molecule.fch)')
     parser.add_argument('-func', '--functional',  type=str,   default=None,      help='functional name (pbe0)')
     parser.add_argument('-b',    '--basis',       type=str,   default=None,      help='basis set name (def2-SVP)')
     parser.add_argument('-ax',   '--a_x',         type=float, default=None,      help='HF component in the hybrid functional')
@@ -22,12 +22,17 @@ def gen_args():
     parser.add_argument('-th',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
     parser.add_argument('-p',    '--add_p',       type=bool,  default=False,     help='add an extra p function to the auxilibary basis')
 
-    parser.add_argument('-tda',  '--TDA',         type=bool,   default=False,     help='peform TDA calculation instead of TDDFT') 
+    parser.add_argument('-tda',  '--TDA',         type=bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
     parser.add_argument('-n',    '--nroots',      type=int,   default=20,        help='the number of states you want to solve')
     parser.add_argument('-t',    '--conv_tol',    type=bool,  default=1e-5,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
 
     args = parser.parse_args()
+
+    if args.filename == None:
+        raise ValueError('I need the .fch filename, such as -f molecule.fch')
+    if args.functional == None and args.a_x == None and args.omega == None:
+        raise ValueError('I need the functional name, such as -func pbe0; or functional parameters: a_x, omega, alpha, beta, such as -ax 0.25; -w 0.5 -al 0.5 -be 1.0')
 
     return args
 
