@@ -1,8 +1,10 @@
 # pyscf-TDDFT-ris (v1.0)
-This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV absorption spectra. The TDDFT-ris calculation starts from a completed DFT calculation, typically a `.fch` or `.molden` file. Also, it can also initiate from the PySCF `mf` object resulting from a DFT calculation.
+This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV absorption spectra. The TDDFT-ris calculation starts from a completed SCF calculation, typically a `.fch` or `.molden` file. Also, it can start from the PySCF `mf` object resulting from a SCF calculation.
 
 
-Note: Turbomole has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
+Note: 
+TURBOMOLE7.7dev has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
+Amespv1.1dev has already built-in TDDFT-ris, see [Amesp](https://amesp.xyz/)
 
 ## Theory
 In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris model [1,2]. This is model achieved by two steps:
