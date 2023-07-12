@@ -90,7 +90,7 @@ Optional Features
 ```
 -f <filename>   
 ```
-Choose a `.fch` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: *.fch
+Choose a `.fch` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: None
 
 ```
 -func <functional_name>
