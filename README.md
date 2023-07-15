@@ -1,6 +1,7 @@
 # pyscf-TDDFT-ris (v1.0)
-This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV absorption spectra. The TDDFT-ris calculation starts from a completed SCF calculation, typically a `.fch` or `.molden` file. Also, it can start from the PySCF `mf` object resulting from a SCF calculation.
+This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV-vis absorption spectra. The TDDFT-ris calculation starts from a completed SCF calculation, typically a `.fch` or `.molden` file. Also, it can start from the PySCF `mf` object.
 
+Currently, it supports UKS/RKS, TDA/TDDFT, pure/hybrid/range-separated-hybrid functional. Not yet support implicit solvation model.
 
 Note: 
 TURBOMOLE7.7dev has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
@@ -88,11 +89,11 @@ Suppose you have finished a DFT calculation with Gaussian and have a `.fch` file
 ```
 ris -f your_fch_file -func pbe0
 ```
-Optional Features
+All the options:
 ```
 -f <filename>   
 ```
-Choose a `.fch` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: None
+Choose a `.fch` or `molden` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: None
 
 ```
 -func <functional_name>
@@ -160,16 +161,6 @@ Specifies the maximum number of iterations for the Davidson algorithm. Default: 
 
 
 
-
-
-
-
-### ORCA software: `molden` file
-Suppose you have finished a DFT calculation with ORCA and converted the `.gbw` file to `.molden` file, you can run the TDDFT-ris calculation by executing the following command line in directory containing the `.molden` file:
-```
-ris -f your_molden_file -func pbe0 -b def2-TZVP
-```
-
 ### PySCF script: `mf` object
 
 
@@ -209,10 +200,6 @@ Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculat
 
 The calculation generates a `TDDFT-ris_UV_spectra.txt` file. I provided a script, `examples/Gaussian_fch/spectra.py`, to plot the spectra through command line `$sh plot.sh`.
 
-
-Similar script to read ORCA `.molden` file is provided in the `/examples/ORCA_molden/` folder. Please note that MOKIT is not required in this way. Also, because `.molden` has normalized basis set, users need to manually input the basis set used in DFT calculation.
-
-At present, this package exclusively supports **closed shell** systems with **hybrid** functional and range-separated hybrid (**RSH**) functional, as parameterized in `pyscf_TDDFT_ris/parameter.py`. If you require a functional that is not listed there, you can simply augment the dictionary with the name of the functional and its parameters. For instance, for a hybrid functional, you would add the Hartree-Fock (HF) component $a_x$, or for an RSH functional, you would include the $\omega$, $\alpha$, and $\beta$ values.
 
 
 
