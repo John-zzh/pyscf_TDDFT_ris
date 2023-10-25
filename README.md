@@ -87,85 +87,99 @@ The package has different interface for different software package, including Ga
 ### Gaussian software: `.fch` file
 Suppose you have finished a DFT calculation with Gaussian and have a `.fch` file, you can run the TDDFT-ris calculation by executing the following command line:
 ```
-ris -f your_fch_file -func pbe0
+ris -f path_to_your_fch_file -func pbe0
 ```
+
+TDDFT-ris does not really need parallelization, because it is already very fast. But if you want to run it in parallel, you can set up the environment variables through command line:
+```
+export MKL_NUM_THREADS=2
+export OMP_NUM_THREADS=2
+``````
+or other equivalent environment variables on your machine. The major
+computation is automatically parallelized by NumPy. I doubt the parallelization
+on more than 2 cores will bring any further speedup.
+
+
 All the options:
+
+(1) The `.fch` or `molden` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: None
 ```
 -f <filename>   
 ```
-Choose a `.fch` or `molden` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: None
 
+(2) The functional name. Default: None
 ```
 -func <functional_name>
 ```   
-Specifies the functional name. Default: None
+
+(3) The basis set name. Only need to specify this option when dealing with a `molden` file.  Default: None
 
 ```
 -b <basis>   
 ```
-Specifies the basis set name. Only need to specify this option when dealing with a `molden` file. 
 
 
+(4) The amount of Fock exchange in the hybrid functional (e.g. -ax 0.25 for PBE0). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 ```
 -ax <a_x>  
 ```
-Specifies the amount of Fock exchange in the hybrid functional (e.g. -ax 0.25 for PBE0). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 
-
+(5) The screening factor in the range-separated hybrid (RSH)functional (e.g. -w 0.3 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 ```
 -w <omega> 
 ```
-Specifies the screening factor in the range-separated hybrid (RSH)functional (e.g. -w 0.3 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 
-
+(6) The alpha factor in the RSH functional (e.g. -al 0.157706 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 ```
 -al <alpha>
 ```
-Specifies the alpha factor in the RSH functional (e.g. -al 0.157706 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 
 
+(7) The alpha factor in the RSH functional (e.g. -be 0.842294 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 ```
 -be <beta>
 ```
-Specifies the alpha factor in the RSH functional (e.g. -be 0.842294 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
 
+(8) The global parameter $\theta$ in the auxiliary basis $s$ orbital exponent, $\alpha_A = \frac{\theta}{R_A^2}$ Default: 0.2
 ```
 -th <theta>
 ```
-Specifies the global parameter $\theta$ in the auxiliary basis $s$ orbital exponent, $\alpha_A = \frac{\theta}{R_A^2}$ Default: 0.2
 
+(9) Adding an extra $p$ function to the auxiliary basis. Default: False
 ```
 -p <bool>
 ```
-Specifies whether adding an extra $p$ function to the auxiliary basis. Default: False
+
+(10) Turn on the TDA approximation. Default: False
 
 ```
 -tda <bool>
 ```
-Specifies whether using the TDA approximation. Default: False
 
+(11) The number of excited states to be calculated. Default: 20
 ```
 -n <nroots>
 ```
-Specifies the number of excited states to be calculated. Default: 20
 
+(12) The convergence tolerance for the Davidson algorithm. Default: 1e-5
 ```
 -t <conv_tol>
 ```
-Specifies the convergence tolerance for the Davidson algorithm. Default: 1e-5
 
+(13) The maximum number of iterations for the Davidson algorithm. Default: 20
 ```
 -i <max_iter>
 ```
-Specifies the maximum number of iterations for the Davidson algorithm. Default: 20
-
-
 
 ### PySCF script: `mf` object
 
 
 Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculation by constructing `TDDTF_ris` object. For example
 ```
+    import numpy as np
+    from pyscf import gto,  dft
+    from pyscf_TDDFT_ris import TDDFT_ris
+
     mol = gto.Mole()
     mol.verbose = 3
     mol.atom = '''
@@ -179,7 +193,9 @@ Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculat
     mol.basis = 'def2-SVP'
     mol.build()
 
-    ''' also support UKS calculation '''
+    ''' Run the SCF calculation. 
+        Note: TDDFT-ris also supports UKS calculation 
+    '''
     mf = dft.RKS(mol)
 
     mf = mf.density_fit() #optional 
@@ -199,8 +215,6 @@ Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculat
 ```
 
 The calculation generates a `***REMOVED***` file. I provided a script, `examples/Gaussian_fch/spectra.py`, to plot the spectra through command line `$sh plot.sh`.
-
-
 
 
 Feel free to test out larger molecules (20-99 atoms) in the `xyz_files_EXTEST42` folder. You should expect an energy RMSE of 0.06 eV, and ~300 wall time speedup compared to the standard TDDFT calculation.
