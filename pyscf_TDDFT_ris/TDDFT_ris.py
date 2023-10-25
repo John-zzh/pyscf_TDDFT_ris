@@ -2,6 +2,7 @@ from pyscf import gto, lib, dft
 import numpy as np
 import multiprocessing as mp
 from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper
+# import matplotlib.pyplot as plt
 
 np.set_printoptions(linewidth=250, threshold=np.inf)
 
@@ -46,12 +47,12 @@ class TDDFT_ris(object):
         if hasattr(mf, 'xc'):
             functional = mf.xc.lower()
             self.functional = mf.xc
-            print('Loading defult functional paramters from parameter.py.')
+            print('loading default XC functional paramters from parameter.py')
             if functional in parameter.rsh_func.keys():
                 '''
                 RSH functional, need omega, alpha, beta
                 '''
-                print('use range-separated hybrid functional')
+                print('use range-separated hybrid XC functional')
                 omega, alpha, beta = parameter.rsh_func[functional]
                 self.a_x = 1
                 self.omega = omega
@@ -59,19 +60,19 @@ class TDDFT_ris(object):
                 self.beta = beta
 
             elif functional in parameter.hbd_func.keys():
-                print('use hybrid functional')
+                print('use hybrid XC functional')
                 self.a_x = parameter.hbd_func[functional]
 
             else:
-                raise ValueError(f"I do not have paramters for functional {mf.xc} yet, please either manually input HF component a_x or add parameters in the parameter.py file.")
+                raise ValueError(f"I do not have paramters for XC functional {mf.xc} yet, please either manually input HF component a_x or add parameters in the parameter.py file")
             
         else:
             if self.a_x == None and self.omega == None and self.alpha == None and self.beta == None:
-                raise ValueError('Please specify the functional name or the functional parameters')
+                raise ValueError('Please specify the XC functional name or the XC functional parameters')
             else:
                 if a_x:
                     self.a_x = a_x
-                    print("hybrid functional")
+                    print("hybrid XC functional")
                     print(f"manually input HF component ax = {a_x}")
 
                 elif omega and alpha and beta:
@@ -79,13 +80,13 @@ class TDDFT_ris(object):
                     self.omega = omega
                     self.alpha = alpha
                     self.beta = beta
-                    print("range-separated hybrid functional")
+                    print("range-separated hybrid XC functional")
                     print(f"manually input ω = {self.omega}, screening factor")
                     print(f"manually input α = {self.alpha}, fixed HF exchange contribution")
                     print(f"manually input β = {self.beta}, variable part")
 
                 else:
-                    raise ValueError('missing parameters for range-separated functional, please input (w, al, be)')
+                    raise ValueError('missing parameters for range-separated XC functional, please input (w, al, be)')
 
         if self.mol.cart:
             self.eri_tag = '_cart'
@@ -111,9 +112,8 @@ class TDDFT_ris(object):
             print('n_occ for alpha spin =',self.n_occ_a)
             print('n_vir for alpha spin =',self.n_vir_a)
             print('n_occ for beta spin =',self.n_occ_b)
-            print('n_vir for beta spin =',self.n_vir_b)
+            print('n_vir for beta spin =',self.n_vir_b)    
 
-            
     def gen_auxmol(self, theta=0.2, add_p=False):
         print('Asigning minimal auxiliary basis set')
         if add_p:
@@ -1120,5 +1120,4 @@ class TDDFT_ris(object):
                                                     RKS=self.RKS)
         # print('energies =', energies)
         return energies, X, Y, oscillator_strength
-    
-     
+
