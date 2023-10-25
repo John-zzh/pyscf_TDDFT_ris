@@ -104,7 +104,7 @@ All the options:
 
 (1) The `.fch` or `molden` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: None
 ```
--f <filename>   
+-f <input_filename>   
 ```
 
 (2) The functional name. Default: None
@@ -169,6 +169,11 @@ All the options:
 (13) The maximum number of iterations for the Davidson algorithm. Default: 20
 ```
 -i <max_iter>
+```
+
+(14) The output spectra file name is `<output_filename>-***REMOVED***`. Default: `<input_filename>-***REMOVED***`
+```
+-fout <output_filename>
 ```
 
 ### PySCF script: `mf` object

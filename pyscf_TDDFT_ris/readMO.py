@@ -17,7 +17,7 @@ def get_mf_from_fch(fch_file: str, functional: str = None):
     nbf, nif = read_nbf_and_nif_from_fch(fch_file)
     
 
-    mol.build()
+    mol.build(parse_arg = False)
     print('======= Molecular Coordinates ========')
     print(mol.atom)
 
@@ -68,7 +68,7 @@ def get_mf_from_molden(molden_file, functional, basis):
     mol, mo_energy, mo_coeff, mo_occ, _, _ = molden.read(molden_file)
 
     mol.basis = basis
-    mol.build()
+    mol.build(parse_arg = False)
     print('======= Molecular Coordinates ========')
     print(mol.atom)
 

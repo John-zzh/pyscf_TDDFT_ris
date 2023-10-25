@@ -26,7 +26,8 @@ class TDDFT_ris(object):
                 nroots: int = 5,
                 max_iter: int = 25,
                 spectra: bool = True,
-                pyscf_TDDFT_vind: callable = None):
+                pyscf_TDDFT_vind: callable = None,
+                out_name: str = None,):
         '''
         add_p: whether add p orbital to aux basis
         '''
@@ -43,7 +44,7 @@ class TDDFT_ris(object):
         self.mol = mf.mol
         self.pyscf_TDDFT_vind = pyscf_TDDFT_vind
         self.spectra = spectra
-
+        self.out_name = out_name
         if hasattr(mf, 'xc'):
             functional = mf.xc.lower()
             self.functional = mf.xc
@@ -993,7 +994,7 @@ class TDDFT_ris(object):
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                        transition_vector= X, 
                                                        P=P, 
-                                                       name='TDA-ris', 
+                                                       name=self.out_name+'TDA-ris', 
                                                        RKS=self.RKS,
                                                        spectra=self.spectra)
 
@@ -1115,7 +1116,7 @@ class TDDFT_ris(object):
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                     transition_vector= X+Y, 
                                                     P=P, 
-                                                    name='TDDFT-ris', 
+                                                    name=self.out_name+'TDDFT-ris', 
                                                     spectra=self.spectra,
                                                     RKS=self.RKS)
         # print('energies =', energies)

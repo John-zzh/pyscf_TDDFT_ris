@@ -12,6 +12,7 @@ def str2bool(str):
 def gen_args():
     parser = argparse.ArgumentParser(description='Davidson')
     parser.add_argument('-f',    '--filename',    type=str,   default=None,      help='.fch filename (molecule.fch)')
+    parser.add_argument('-fout',    '--outname',     type=str,   default=None,      help='output file name')
     parser.add_argument('-func', '--functional',  type=str,   default=None,      help='functional name (pbe0)')
     parser.add_argument('-b',    '--basis',       type=str,   default=None,      help='basis set name (def2-SVP)')
     parser.add_argument('-ax',   '--a_x',         type=float, default=None,      help='HF component in the hybrid functional')
@@ -33,7 +34,17 @@ def gen_args():
         raise ValueError('I need the .fch filename, such as -f molecule.fch')
     if args.functional == None and args.a_x == None and args.omega == None:
         raise ValueError('I need the functional name, such as -func pbe0; or functional parameters: a_x, omega, alpha, beta, such as -ax 0.25; -w 0.5 -al 0.5 -be 1.0')
+    if args.outname == None:
+        args.outname = args.filename + '-'
+    else:
+        args.outname = args.outname + '-'
 
+    if args.add_p == True:
+        print('using one s and one p function per atom as the auxilibary basis')
+        print('You are running TDDFT-ris+p method')
+    else:
+        print('using one s function per atom as the auxilibary basis')
+        print('You are running TDDFT-ris method')
     return args
 
 args = gen_args()
@@ -71,7 +82,8 @@ if __name__ == '__main__':
                             beta=args.beta,
                             conv_tol=args.conv_tol,
                             nroots=args.nroots, 
-                            max_iter=args.max_iter)
+                            max_iter=args.max_iter,
+                            out_name=args.outname)
 
     if args.TDA == True:
         energies, X, oscillator_strength = td.kernel_TDA()
