@@ -4,8 +4,10 @@ This python package, based on PySCF, provides the semiempirical TDDFT-ris method
 Currently, it supports UKS/RKS, TDA/TDDFT, pure/hybrid/range-separated-hybrid functional. Not yet support implicit solvation model.
 
 Note: 
-TURBOMOLE7.7dev has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
-Amespv1.1dev has already built-in TDDFT-ris, see [Amesp](https://amesp.xyz/)
+
+(1) Software package TURBOMOLE7.7dev has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
+
+(2) Software package Amespv1.1dev has already built-in TDDFT-ris, see [Amesp](https://amesp.xyz/)
 
 ## Theory
 In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris model [1,2]. This is model achieved by two steps:
