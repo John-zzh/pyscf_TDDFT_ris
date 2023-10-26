@@ -994,7 +994,7 @@ class TDDFT_ris(object):
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                        transition_vector= X, 
                                                        P=P, 
-                                                       name=self.out_name+'TDA-ris', 
+                                                       name=self.out_name+'-TDA-ris', 
                                                        RKS=self.RKS,
                                                        spectra=self.spectra)
 
@@ -1116,7 +1116,7 @@ class TDDFT_ris(object):
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                     transition_vector= X+Y, 
                                                     P=P, 
-                                                    name=self.out_name+'TDDFT-ris', 
+                                                    name=self.out_name+'-TDDFT-ris', 
                                                     spectra=self.spectra,
                                                     RKS=self.RKS)
         # print('energies =', energies)
