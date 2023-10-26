@@ -21,11 +21,11 @@ def gen_args():
     parser.add_argument('-be',   '--beta',        type=float, default=None,      help='beta in the range-separated functional')
     
     parser.add_argument('-th',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
-    parser.add_argument('-p',    '--add_p',       type=bool,  default=False,     help='add an extra p function to the auxilibary basis')
+    parser.add_argument('-p',    '--add_p',       type=str2bool,  default=False,     help='add an extra p function to the auxilibary basis')
 
-    parser.add_argument('-tda',  '--TDA',         type=bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
+    parser.add_argument('-tda',  '--TDA',         type=str2bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
     parser.add_argument('-n',    '--nroots',      type=int,   default=20,        help='the number of states you want to solve')
-    parser.add_argument('-t',    '--conv_tol',    type=bool,  default=1e-5,      help='the convengence tolerance in the Davidson diagonalization')
+    parser.add_argument('-t',    '--conv_tol',    type=float,  default=1e-5,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
 
     args = parser.parse_args()
