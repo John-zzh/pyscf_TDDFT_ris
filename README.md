@@ -178,6 +178,12 @@ All the options:
 -fout <output_filename>
 ```
 
+
+(15) The threshold to print out the transition coefficients. Default: 0.05
+```
+-pt <print_threshold>
+```
+
 ### PySCF script: `mf` object
 
 
