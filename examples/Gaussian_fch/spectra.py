@@ -187,7 +187,7 @@ legen_dict['***REMOVED***'] = 'TDDFT-ris'
 legen_dict['TDDFT-sp'] = 'TDDFT-risp'
 
 def overlap_plot():
-    fig, ax = plt.subplots(figsize=(args.fsize[0], args.fsize[1])) # creat a figure sinstance
+    fig, ax = plt.subplots(figsize=(args.fsize[0], args.fsize[1])) # creat a figure instance
 
     if args.xlabel and args.ylabel:
     # catene-1b
