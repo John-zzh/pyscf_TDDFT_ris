@@ -14,7 +14,7 @@ def Davidson(matrix_vector_product,
     initial_guess is a function, takes the number of initial guess as input
     preconditioner is a function, takes the residual as the input
     '''
-    print('====== Davidson Diagonalization Done ======')
+    print('====== Davidson Diagonalization Starts ======')
 
     D_start = time.time()
 
@@ -124,7 +124,7 @@ def Davidson_Casida(matrix_vector_product,
     [ B A ] Y   [0  -1] X   = 0
 
     '''
-    print('======= TDDFT-ris eiegn solver statrs =======')
+    print('======= TDDFT-ris Eiegn Solver Statrs =======')
 
     TD_start = time.time()
     A_size = hdiag.shape[0]
@@ -286,12 +286,12 @@ def Davidson_Casida(matrix_vector_product,
     for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
         print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/TD_cost))
-    print('======= TDDFT eigen solver Done =======' )
+    print('======= TDDFT Eigen Solver Done =======' )
     # energies = omega*parameter.Hartree_to_eV
 
     return omega, X_full, Y_full
 
-def gen_spectra(energies, transition_vector, P, name, RKS, spectra=True):
+def gen_spectra(energies, transition_vector, P, name, RKS, n_occ, n_vir, spectra=True, print_threshold=0.05):
     '''
     E = hν
     c = λ·ν
@@ -356,16 +356,34 @@ def gen_spectra(energies, transition_vector, P, name, RKS, spectra=True):
 
     for i in range(4):
         data[:,i] = entry[i]
-
+    print('================================================')
     print('eV       nm       cm^-1    oscillator strength')
     for row in range(data.shape[0]):
         print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
-    print()
+    
     if spectra:
         filename = name + '_UV_spectra.txt'
         with open(filename, 'w') as f:
             np.savetxt(f, data, fmt='%.8f', header='eV       nm           cm^-1         oscillator strength')
         print('spectra data written to', filename)
+
+    print('================================================')
+    
+    if RKS:
+        print('RKS transition coefficient:')
+        print('index of HOMO:', n_occ)
+        print('index of LUMO:', n_occ+1)
+        n_state = transition_vector.shape[1]
+        transition_vector = transition_vector.reshape(n_occ,n_vir,n_state)
+        for state in range(n_state):
+            print('state {:d}:'.format(state+1))
+            for occ in range(n_occ):
+                for vir in range(n_vir):
+                    coeff = transition_vector[occ,vir,state]
+                    if coeff >= print_threshold:
+                        print('{:>15d}->{:<8d} {:<8.3f}'.format(occ+1, vir+1+n_occ, coeff))
+    else:
+        print('UKS transition coefficient not printed')
 
     return oscillator_strength
 

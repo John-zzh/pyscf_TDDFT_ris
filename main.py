@@ -27,6 +27,7 @@ def gen_args():
     parser.add_argument('-n',    '--nroots',      type=int,   default=20,        help='the number of states you want to solve')
     parser.add_argument('-t',    '--conv_tol',    type=float,  default=1e-5,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
+    parser.add_argument('-pt',   '--print_thre',  type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
 
     args = parser.parse_args()
 
@@ -83,7 +84,8 @@ if __name__ == '__main__':
                             conv_tol=args.conv_tol,
                             nroots=args.nroots, 
                             max_iter=args.max_iter,
-                            out_name=args.outname)
+                            out_name=args.outname,
+                            print_threshold=args.print_thre)
 
     if args.TDA == True:
         energies, X, oscillator_strength = td.kernel_TDA()

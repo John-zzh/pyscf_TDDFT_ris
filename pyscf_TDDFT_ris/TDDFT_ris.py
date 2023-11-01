@@ -27,7 +27,8 @@ class TDDFT_ris(object):
                 max_iter: int = 25,
                 spectra: bool = True,
                 pyscf_TDDFT_vind: callable = None,
-                out_name: str = None,):
+                out_name: str = '',
+                print_threshold: float = 0.05):
         '''
         add_p: whether add p orbital to aux basis
         '''
@@ -45,6 +46,7 @@ class TDDFT_ris(object):
         self.pyscf_TDDFT_vind = pyscf_TDDFT_vind
         self.spectra = spectra
         self.out_name = out_name
+        self.print_threshold = print_threshold
         if hasattr(mf, 'xc'):
             functional = mf.xc.lower()
             self.functional = mf.xc
@@ -101,7 +103,9 @@ class TDDFT_ris(object):
             self.n_bf = len(mf.mo_occ)
             self.n_occ = sum(mf.mo_occ>0)
             self.n_vir = self.n_bf - self.n_occ
-            
+            print('n_occ =',self.n_occ)
+            print('n_vir =',self.n_vir)
+
         elif mf.mo_coeff.ndim == 3:
             self.RKS = False
             self.UKS = True
@@ -976,13 +980,17 @@ class TDDFT_ris(object):
             always use the Davidson solver
             pure TDA is not using MZ=Zw^2 form
         '''
+
         if self.RKS:
             TDA_mv, hdiag = self.gen_RKS_TDA_mv()
             P = self.gen_RKS_P()
+
         elif self.UKS:
             TDA_mv, hdiag = self.gen_UKS_TDA_mv()
             P = self.gen_UKS_P()
-        print('min(hdiag)', min(hdiag)*parameter.Hartree_to_eV)
+
+
+        # print('min(hdiag)', min(hdiag)*parameter.Hartree_to_eV)
         energies, X = eigen_solver.Davidson(matrix_vector_product = TDA_mv,
                                                     hdiag = hdiag,
                                                     N_states = self.nroots,
@@ -996,7 +1004,10 @@ class TDDFT_ris(object):
                                                        P=P, 
                                                        name=self.out_name+'-TDA-ris', 
                                                        RKS=self.RKS,
-                                                       spectra=self.spectra)
+                                                       spectra=self.spectra,
+                                                       print_threshold = self.print_threshold,
+                                                       n_occ=self.n_occ if self.RKS else (self.n_occ_a, self.n_occ_b),
+                                                       n_vir=self.n_vir if self.RKS else (self.n_vir_a, self.n_vir_b))
 
         return energies, X, oscillator_strength
         # from pyscf.lib import davidson1
@@ -1111,14 +1122,21 @@ class TDDFT_ris(object):
 
             X, Y = eigen_solver.XmY_2_XY(Z=Z, AmB_sq=hdiag_sq, omega=energies)
 
-        print('check norm of X^TX - Y^YY = {:.3e}'.format(np.linalg.norm( (np.dot(X.T,X) - np.dot(Y.T,Y)) -np.eye(self.nroots) )))
+        XY_norm_check = np.linalg.norm( (np.dot(X.T,X) - np.dot(Y.T,Y)) -np.eye(self.nroots) )
+        print('check norm of X^TX - Y^YY = {:.3e}'.format(XY_norm_check))
+
         energies = energies*parameter.Hartree_to_eV
+
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                     transition_vector= X+Y, 
                                                     P=P, 
                                                     name=self.out_name+'-TDDFT-ris', 
                                                     spectra=self.spectra,
-                                                    RKS=self.RKS)
+                                                    RKS=self.RKS,
+                                                    n_occ=self.n_occ if self.RKS else (self.n_occ_a, self.n_occ_b),
+                                                    n_vir=self.n_vir if self.RKS else (self.n_vir_a, self.n_vir_b))
+        
+        
         # print('energies =', energies)
         return energies, X, Y, oscillator_strength
 
