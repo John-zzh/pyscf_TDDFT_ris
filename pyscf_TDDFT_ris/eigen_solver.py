@@ -329,7 +329,7 @@ def gen_spectra(energies, transition_vector, P, name, RKS, n_occ, n_vir, spectra
     transition_vector is eigenvector of A matrix
     '''
     energies = energies.reshape(-1,)
-
+    transition_vector = transition_vector/np.linalg.norm(transition_vector, axis=0)
     eV = energies.copy()
     # print(energies, energies.shape)
     cm_1 = eV*8065.544
@@ -370,7 +370,7 @@ def gen_spectra(energies, transition_vector, P, name, RKS, n_occ, n_vir, spectra
     print('================================================')
     
     if RKS:
-        print('RKS transition coefficient:')
+        print('print RKS transition coefficients larger than {:<8f}'.format(print_threshold))
         print('index of HOMO:', n_occ)
         print('index of LUMO:', n_occ+1)
         n_state = transition_vector.shape[1]

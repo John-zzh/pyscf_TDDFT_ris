@@ -47,6 +47,7 @@ class TDDFT_ris(object):
         self.spectra = spectra
         self.out_name = out_name
         self.print_threshold = print_threshold
+        # print('self.print_threshold',self.print_threshold)
         if hasattr(mf, 'xc'):
             functional = mf.xc.lower()
             self.functional = mf.xc
@@ -999,6 +1000,7 @@ class TDDFT_ris(object):
         energies = energies*parameter.Hartree_to_eV
         # print('energies =', energies)
 
+        # print('self.print_threshold', self.print_threshold)
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                        transition_vector= X, 
                                                        P=P, 
@@ -1133,6 +1135,7 @@ class TDDFT_ris(object):
                                                     name=self.out_name+'-TDDFT-ris', 
                                                     spectra=self.spectra,
                                                     RKS=self.RKS,
+                                                    print_threshold = self.print_threshold,
                                                     n_occ=self.n_occ if self.RKS else (self.n_occ_a, self.n_occ_b),
                                                     n_vir=self.n_vir if self.RKS else (self.n_vir_a, self.n_vir_b))
         
