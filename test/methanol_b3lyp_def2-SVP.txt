@@ -1,0 +1,215 @@
+This job can use: 8CPUs
+======================================= RKS b3lyp TDA-ris =======================================
+converged SCF energy = -115.563857146134
+loading default XC functional paramters from parameter.py
+use hybrid XC functional
+cartesian or spherical electron integral = sph
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+min(hdiag) 8.440581080071002
+====== Davidson Diagonalization Done ======
+size of A matrix = 351
+step max||r||   sub_A.shape
+1    6.1008e-02 28   
+2    2.1840e-02 48   
+3    1.2111e-03 68   
+4    7.3465e-05 88   
+5    6.5261e-06 91   
+Finished in 5 steps, 0.03 seconds
+Maximum residual norm = 6.53e-06
+Final subspace size = 91
+MVcost     0.0077s 24.38%
+GScost     0.0108s 34.15%
+subgencost 0.0008s 2.52%
+subcost    0.0070s 22.24%
+full_cost  0.0004s 1.38%
+========== Davidson Diagonalization Done ==========
+eV       nm       cm^-1    oscillator strength
+6.777    183      54657    0.00152834
+8.403    148      67773    0.04290902
+8.754    142      70607    0.00614216
+9.510    130      76703    0.02409605
+9.709    128      78306    0.05158764
+10.149   122      81859    0.13920321
+10.600   117      85497    0.00282908
+11.246   110      90702    0.06236214
+11.283   110      91000    0.02869374
+11.512   108      92854    0.12177912
+11.859   105      95653    0.12558089
+12.465   100      100535   0.01088709
+12.736   97       102726   0.20900120
+13.048   95       105240   0.06598628
+13.625   91       109892   0.00333070
+13.748   90       110885   0.08893656
+14.117   88       113864   0.07255290
+14.191   87       114462   0.36373100
+14.892   83       120110   0.19468158
+15.070   82       121549   0.14977065
+
+RKS_b3lyp_TDA
+======================================= RKS b3lyp TDDFT-ris =======================================
+converged SCF energy = -115.563857146134
+loading default XC functional paramters from parameter.py
+use hybrid XC functional
+cartesian or spherical electron integral = sph
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+======= TDDFT-ris eiegn solver statrs =======
+size of A matrix = 351
+step maximum residual norm
+1    2.0900e-01
+2    1.1055e-02
+3    2.2056e-03
+4    2.0405e-04
+5    9.1270e-06
+Finished in 5 steps, 0.06 seconds
+final subspace 90
+max_norm = 9.13e-06
+MVcost     0.0168s 26.01%
+GScost     0.0179s 27.77%
+subgencost 0.0046s 7.14%
+subcost    0.0118s 18.24%
+full_cost  0.0025s 3.87%
+======= TDDFT eigen solver Done =======
+check norm of X^TX - Y^YY = 6.301e-15
+eV       nm       cm^-1    oscillator strength
+6.774    183      54637    0.00117706
+8.396    148      67717    0.03940617
+8.732    142      70431    0.00534870
+9.503    131      76645    0.02111907
+9.683    128      78099    0.04968890
+10.122   123      81637    0.12302096
+10.596   117      85464    0.00246653
+11.228   111      90560    0.05700032
+11.279   110      90968    0.02647475
+11.462   108      92447    0.11154069
+11.846   105      95541    0.11071404
+12.453   100      100443   0.01056672
+12.716   98       102560   0.19129371
+13.043   95       105202   0.06036400
+13.623   91       109877   0.00280444
+13.709   91       110567   0.08809318
+14.105   88       113767   0.06294722
+14.130   88       113968   0.31394231
+14.858   84       119841   0.14766577
+14.939   83       120491   0.13037210
+
+RKS_b3lyp_TDDFT
+======================================= UKS b3lyp TDA-ris =======================================
+converged SCF energy = -115.177432790219  <S^2> = 0.75386329  2S+1 = 2.0038596
+loading default XC functional paramters from parameter.py
+use hybrid XC functional
+cartesian or spherical electron integral = sph
+n_occ for alpha spin = 9
+n_vir for alpha spin = 39
+n_occ for beta spin = 8
+n_vir for beta spin = 40
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+min(hdiag) 3.780179620371047
+====== Davidson Diagonalization Done ======
+size of A matrix = 671
+step max||r||   sub_A.shape
+1    1.5367e-01 28   
+2    1.1967e-02 48   
+3    1.0442e-03 68   
+4    1.2978e-04 88   
+5    1.1303e-05 103  
+6    5.5084e-06 104  
+Finished in 6 steps, 0.05 seconds
+Maximum residual norm = 5.51e-06
+Final subspace size = 104
+MVcost     0.0185s 36.15%
+GScost     0.0183s 35.75%
+subgencost 0.0020s 3.90%
+subcost    0.0061s 11.99%
+full_cost  0.0010s 2.05%
+========== Davidson Diagonalization Done ==========
+eV       nm       cm^-1    oscillator strength
+1.712    725      13811    0.00018934
+4.257    291      34336    0.00098849
+5.716    217      46104    0.12353473
+6.788    183      54750    0.01175722
+10.189   122      82177    0.00023193
+10.361   120      83569    0.00308055
+10.462   119      84383    0.00109648
+10.905   114      87952    0.02746688
+12.422   100      100190   0.00464056
+12.436   100      100300   0.00923928
+12.523   99       101007   0.03971248
+12.745   97       102794   0.03864141
+12.752   97       102849   0.00413991
+13.059   95       105327   0.02200698
+13.130   94       105899   0.03945577
+13.249   94       106862   0.00586402
+13.321   93       107442   0.00101058
+13.373   93       107859   0.04831455
+13.402   93       108092   0.01513894
+13.663   91       110197   0.10526878
+
+UKS_b3lyp_TDA
+======================================= UKS b3lyp TDDFT-ris =======================================
+converged SCF energy = -115.177432790219  <S^2> = 0.75386329  2S+1 = 2.0038596
+loading default XC functional paramters from parameter.py
+use hybrid XC functional
+cartesian or spherical electron integral = sph
+n_occ for alpha spin = 9
+n_vir for alpha spin = 39
+n_occ for beta spin = 8
+n_vir for beta spin = 40
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+======= TDDFT-ris eiegn solver statrs =======
+size of A matrix = 671
+step maximum residual norm
+1    1.8835e-01
+2    4.0296e-02
+3    9.5368e-03
+4    9.5870e-04
+5    1.0194e-04
+6    6.7676e-06
+Finished in 6 steps, 0.14 seconds
+final subspace 104
+max_norm = 6.77e-06
+MVcost     0.0488s 34.18%
+GScost     0.0490s 34.35%
+subgencost 0.0089s 6.26%
+subcost    0.0133s 9.33%
+full_cost  0.0060s 4.19%
+======= TDDFT eigen solver Done =======
+check norm of X^TX - Y^YY = 6.514e-15
+eV       nm       cm^-1    oscillator strength
+1.698    730      13699    0.00004175
+4.252    292      34292    0.00101075
+5.363    231      43252    0.07645872
+6.759    184      54514    0.00820610
+10.186   122      82152    0.00034779
+10.351   120      83488    0.00332142
+10.461   119      84376    0.00104300
+10.879   114      87744    0.02224057
+12.421   100      100178   0.00487533
+12.431   100      100266   0.00912257
+12.518   99       100965   0.03858807
+12.738   97       102740   0.03681887
+12.749   97       102828   0.00416348
+13.046   95       105221   0.02528461
+13.118   95       105806   0.03243480
+13.247   94       106847   0.00597231
+13.320   93       107435   0.00102228
+13.356   93       107725   0.04832377
+13.397   93       108056   0.00895777
+13.635   91       109974   0.09828576
+
+UKS_b3lyp_TDDFT

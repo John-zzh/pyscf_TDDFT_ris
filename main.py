@@ -53,7 +53,9 @@ args = gen_args()
 
 if __name__ == '__main__':
     
-
+    import sys,os
+    print(sys.path)
+    print(os.getcwd())
     '''
     if mf object already has a functional name, 
     then do not need to specify the a_x or (omega, alpha, beta), 

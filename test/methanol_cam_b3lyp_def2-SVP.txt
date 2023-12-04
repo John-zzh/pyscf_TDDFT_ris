@@ -1,0 +1,240 @@
+This job can use: 8CPUs
+======================================= RKS cam-b3lyp TDA-ris =======================================
+converged SCF energy = -115.576160110447
+loading default XC functional paramters from parameter.py
+use range-separated hybrid XC functional
+cartesian or spherical electron integral = sph
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+2c2e and 3c2e for RSH RI-K (ij|ab)
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+min(hdiag) 11.50365076491583
+====== Davidson Diagonalization Done ======
+size of A matrix = 351
+step max||r||   sub_A.shape
+1    8.2511e-02 28   
+2    1.8380e-02 48   
+3    4.2442e-03 68   
+4    6.8097e-04 88   
+5    5.6824e-05 107  
+6    6.4578e-06 111  
+Finished in 6 steps, 0.04 seconds
+Maximum residual norm = 6.46e-06
+Final subspace size = 111
+MVcost     0.0106s 30.29%
+GScost     0.0131s 37.21%
+subgencost 0.0010s 2.90%
+subcost    0.0064s 18.32%
+full_cost  0.0006s 1.84%
+========== Davidson Diagonalization Done ==========
+eV       nm       cm^-1    oscillator strength
+6.917    179      55793    0.00108572
+8.895    139      71744    0.06269521
+8.973    138      72375    0.00531338
+9.981    124      80500    0.02528213
+10.202   122      82284    0.06038673
+10.474   118      84476    0.17803320
+10.840   114      87428    0.00812264
+11.646   107      93933    0.02601490
+11.666   106      94092    0.09775223
+11.925   104      96186    0.16422873
+12.280   101      99042    0.12373138
+12.742   97       102768   0.00810540
+13.163   94       106166   0.25178586
+13.490   92       108807   0.05243475
+14.040   88       113239   0.08552272
+14.064   88       113436   0.00151047
+14.463   86       116649   0.34321240
+14.474   86       116743   0.05116819
+15.321   81       123570   0.14665408
+15.399   81       124205   0.13545403
+
+RKS_cam-b3lyp_TDA
+======================================= RKS cam-b3lyp TDDFT-ris =======================================
+converged SCF energy = -115.576160110447
+loading default XC functional paramters from parameter.py
+use range-separated hybrid XC functional
+cartesian or spherical electron integral = sph
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+2c2e and 3c2e for RSH RI-K (ij|ab)
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+======= TDDFT-ris eiegn solver statrs =======
+size of A matrix = 351
+step maximum residual norm
+1    1.9706e-01
+2    2.2239e-02
+3    1.0641e-02
+4    2.3827e-03
+5    2.3845e-04
+6    2.5711e-05
+7    5.3816e-06
+Finished in 7 steps, 0.10 seconds
+final subspace 114
+max_norm = 5.38e-06
+MVcost     0.0244s 24.72%
+GScost     0.0280s 28.36%
+subgencost 0.0077s 7.77%
+subcost    0.0210s 21.22%
+full_cost  0.0048s 4.87%
+======= TDDFT eigen solver Done =======
+check norm of X^TX - Y^YY = 5.754e-15
+eV       nm       cm^-1    oscillator strength
+6.915    179      55771    0.00082211
+8.887    140      71680    0.05830494
+8.951    139      72198    0.00470319
+9.974    124      80444    0.02243440
+10.173   122      82050    0.06199433
+10.450   119      84281    0.15623905
+10.832   115      87369    0.00710929
+11.642   107      93901    0.02484641
+11.644   107      93915    0.08825338
+11.868   105      95720    0.14993215
+12.270   101      98964    0.10954916
+12.721   98       102603   0.00815355
+13.145   94       106023   0.23362031
+13.488   92       108785   0.04882403
+14.000   89       112917   0.08308750
+14.062   88       113418   0.00123775
+14.410   86       116222   0.29033357
+14.466   86       116672   0.04464927
+15.195   82       122554   0.11804322
+15.366   81       123932   0.09976598
+
+RKS_cam-b3lyp_TDDFT
+======================================= UKS cam-b3lyp TDA-ris =======================================
+converged SCF energy = -115.183916284538  <S^2> = 0.75438744  2S+1 = 2.0043826
+loading default XC functional paramters from parameter.py
+use range-separated hybrid XC functional
+cartesian or spherical electron integral = sph
+n_occ for alpha spin = 9
+n_vir for alpha spin = 39
+n_occ for beta spin = 8
+n_vir for beta spin = 40
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+2c2e and 3c2e for RSH RI-K (ij|ab)
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+2c2e and 3c2e for RSH RI-K (ij|ab)
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+min(hdiag) 7.130593444201959
+====== Davidson Diagonalization Done ======
+size of A matrix = 671
+step max||r||   sub_A.shape
+1    1.5347e-01 28   
+2    1.7589e-02 48   
+3    4.7093e-03 68   
+4    1.3414e-03 88   
+5    2.9345e-04 106  
+6    5.1436e-05 121  
+7    6.9437e-06 127  
+Finished in 7 steps, 0.07 seconds
+Maximum residual norm = 6.94e-06
+Final subspace size = 127
+MVcost     0.0216s 29.94%
+GScost     0.0329s 45.67%
+subgencost 0.0025s 3.48%
+subcost    0.0081s 11.27%
+full_cost  0.0011s 1.50%
+========== Davidson Diagonalization Done ==========
+eV       nm       cm^-1    oscillator strength
+1.771    700      14287    0.00013109
+4.363    284      35194    0.00123935
+5.631    220      45417    0.12054914
+6.845    181      55212    0.01097577
+10.449   119      84276    0.00009180
+10.644   117      85849    0.00221052
+10.683   116      86164    0.00200135
+11.260   110      90815    0.02679791
+12.544   99       101174   0.01018051
+12.581   99       101476   0.00427397
+12.694   98       102383   0.04601292
+12.838   97       103542   0.00552990
+12.895   96       104008   0.05074883
+13.229   94       106700   0.06186183
+13.360   93       107752   0.01822105
+13.417   92       108214   0.01338421
+13.599   91       109680   0.00776190
+13.643   91       110038   0.01135599
+13.826   90       111518   0.09080180
+13.917   89       112247   0.13695646
+
+UKS_cam-b3lyp_TDA
+======================================= UKS cam-b3lyp TDDFT-ris =======================================
+converged SCF energy = -115.183916284538  <S^2> = 0.75438744  2S+1 = 2.0043826
+loading default XC functional paramters from parameter.py
+use range-separated hybrid XC functional
+cartesian or spherical electron integral = sph
+n_occ for alpha spin = 9
+n_vir for alpha spin = 39
+n_occ for beta spin = 8
+n_vir for beta spin = 40
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+2c2e and 3c2e for RSH RI-K (ij|ab)
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+2c2e and 3c2e for RSH RI-K (ij|ab)
+auxmol.cart = False
+Three center ERI shape (48, 48, 6)
+======= TDDFT-ris eiegn solver statrs =======
+size of A matrix = 671
+step maximum residual norm
+1    1.9110e-01
+2    4.1634e-02
+3    3.9128e-02
+4    3.3197e-02
+5    9.1291e-03
+6    1.6949e-03
+7    2.3209e-04
+8    2.7242e-05
+9    4.4619e-06
+Finished in 9 steps, 0.25 seconds
+final subspace 139
+max_norm = 4.46e-06
+MVcost     0.0743s 30.23%
+GScost     0.0845s 34.38%
+subgencost 0.0197s 8.04%
+subcost    0.0371s 15.08%
+full_cost  0.0126s 5.13%
+======= TDDFT eigen solver Done =======
+check norm of X^TX - Y^YY = 6.058e-15
+eV       nm       cm^-1    oscillator strength
+1.756    707      14159    0.00002368
+4.352    285      35103    0.00122287
+5.325    233      42946    0.07856726
+6.815    182      54965    0.00770834
+10.444   119      84240    0.00019204
+10.634   117      85768    0.00249672
+10.681   116      86149    0.00188506
+11.234   110      90608    0.02187968
+12.536   99       101112   0.01012964
+12.579   99       101456   0.00432589
+12.689   98       102341   0.04513812
+12.833   97       103508   0.00555215
+12.886   96       103931   0.04829963
+13.207   94       106523   0.06027447
+13.352   93       107694   0.01492942
+13.412   93       108176   0.01331193
+13.597   91       109665   0.00794891
+13.637   91       109991   0.01159697
+13.808   90       111372   0.08478709
+13.886   89       111999   0.12426371
+
+UKS_cam-b3lyp_TDDFT

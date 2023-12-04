@@ -291,7 +291,7 @@ def Davidson_Casida(matrix_vector_product,
 
     return omega, X_full, Y_full
 
-def gen_spectra(energies, transition_vector, P, name, RKS, n_occ, n_vir, spectra=True, print_threshold=0.05):
+def gen_spectra(energies, transition_vector, X_coeff, P, name, RKS, n_occ, n_vir, spectra=True, print_threshold=0.05):
     '''
     E = hν
     c = λ·ν
@@ -329,7 +329,7 @@ def gen_spectra(energies, transition_vector, P, name, RKS, n_occ, n_vir, spectra
     transition_vector is eigenvector of A matrix
     '''
     energies = energies.reshape(-1,)
-    transition_vector = transition_vector/np.linalg.norm(transition_vector, axis=0)
+    # transition_vector = transition_vector/np.linalg.norm(transition_vector, axis=0)
     eV = energies.copy()
     # print(energies, energies.shape)
     cm_1 = eV*8065.544
@@ -373,14 +373,14 @@ def gen_spectra(energies, transition_vector, P, name, RKS, n_occ, n_vir, spectra
         print('print RKS transition coefficients larger than {:<8f}'.format(print_threshold))
         print('index of HOMO:', n_occ)
         print('index of LUMO:', n_occ+1)
-        n_state = transition_vector.shape[1]
-        transition_vector = transition_vector.reshape(n_occ,n_vir,n_state)
+        n_state = X_coeff.shape[1]
+        X_coeff = X_coeff.reshape(n_occ,n_vir,n_state)
         for state in range(n_state):
             print('state {:d}:'.format(state+1))
             for occ in range(n_occ):
                 for vir in range(n_vir):
-                    coeff = transition_vector[occ,vir,state]
-                    if coeff >= print_threshold:
+                    coeff = X_coeff[occ,vir,state]
+                    if np.abs(coeff)>= print_threshold:
                         print('{:>15d}->{:<8d} {:<8.3f}'.format(occ+1, vir+1+n_occ, coeff))
     else:
         print('UKS transition coefficient not printed')

@@ -1003,6 +1003,7 @@ class TDDFT_ris(object):
         # print('self.print_threshold', self.print_threshold)
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                        transition_vector= X, 
+                                                       X_coeff = X/(2**0.5),
                                                        P=P, 
                                                        name=self.out_name+'-TDA-ris', 
                                                        RKS=self.RKS,
@@ -1131,6 +1132,7 @@ class TDDFT_ris(object):
 
         oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
                                                     transition_vector= X+Y, 
+                                                    X_coeff = X/(2**0.5),
                                                     P=P, 
                                                     name=self.out_name+'-TDDFT-ris', 
                                                     spectra=self.spectra,
