@@ -40,7 +40,7 @@ args = gen_args()
 
 
 def read_data(filename, filetype):
-    if  'Gaussian' in filetype:
+    if 'Gaussian' in filetype:
         # the gaussian output
         with open(filename, 'r') as file:
             lines = file.readlines()
@@ -55,7 +55,23 @@ def read_data(filename, filetype):
                 data.append([energy_ev, oscillator_strength])
     
         data = np.array(data)
+
+    if 'lsqc' in filetype:
+        # the gaussian output
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+
+        data = []
+        for line in lines:
+            if line.startswith('Local Excited State'):
+                parts = line.split()
+                energy_ev = float(parts[4])
+                # wavelength_nm = float(parts[6])
+                oscillator_strength = float(parts[8][2:])
+                data.append([energy_ev, oscillator_strength])
     
+        data = np.array(data)
+
     elif 'ris' in filetype:
         # the pyscf-ris output
         data = np.loadtxt(filename, usecols=(0, 2), comments='#')
@@ -82,6 +98,9 @@ def get_line_style(filetype):
 
     style_dict['TDDFT-risp'] = ('#1f77b4','-')
     style_dict['TDA-risp'] = ('#1f77b4','-')
+
+    style_dict['lsqc-TDDFT'] = ('#e377c2','-.')
+    style_dict['lsqc-TDA'] = ('#e377c2','-.')
 
     style_dict['sTDDFT'] = ('#e377c2','-')
     style_dict['sTDA'] = ('#e377c2','-')
