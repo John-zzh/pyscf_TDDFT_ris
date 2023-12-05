@@ -1,7 +1,7 @@
 from pyscf_TDDFT_ris import parameter
 import numpy as np
 
-def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.00001):
+def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001):
     '''
     E = hν
     c = λ·ν
@@ -72,15 +72,16 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
             np.savetxt(f, data, fmt='%.8f', header='eV       nm         oscillator_strength')
         print('spectra data written to', filename)
 
-    def print_coeff(state, coeff, sybmol):
+    print('print_threshold:', print_threshold)
+    def print_coeff(state, coeff_vec, sybmol, n_occ=n_occ, n_vir=n_vir):
         for occ in range(n_occ):
             for vir in range(n_vir):
-                coeff = X[occ,vir,state]
+                coeff = coeff_vec[occ,vir,state]
                 if np.abs(coeff)>= print_threshold:
                     print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
 
     if RKS:
-        print('print RKS transition coefficients larger than {:<8f}'.format(print_threshold))
+        print(f"print RKS transition coefficients larger than {print_threshold:.2e}")
         print('index of HOMO:', n_occ)
         print('index of LUMO:', n_occ+1)
         n_state = X.shape[1]
