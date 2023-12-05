@@ -1,7 +1,7 @@
 from pyscf import gto, lib, dft
 import numpy as np
 import multiprocessing as mp
-from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper
+from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper, spectralib
 # import matplotlib.pyplot as plt
 
 np.set_printoptions(linewidth=250, threshold=np.inf)
@@ -1001,11 +1001,11 @@ class TDDFT_ris(object):
         # print('energies =', energies)
 
         # print('self.print_threshold', self.print_threshold)
-        oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
+        oscillator_strength = spectralib.get_spectra(energies=energies, 
                                                        transition_vector= X, 
                                                        X_coeff = X/(2**0.5),
                                                        P=P, 
-                                                       name=self.out_name+'-TDA-ris', 
+                                                       name=self.out_name+'_TDA_ris', 
                                                        RKS=self.RKS,
                                                        spectra=self.spectra,
                                                        print_threshold = self.print_threshold,
@@ -1123,18 +1123,19 @@ class TDDFT_ris(object):
             energies = energies_sq**0.5
             Z = Z*energies**0.5
 
-            X, Y = eigen_solver.XmY_2_XY(Z=Z, AmB_sq=hdiag_sq, omega=energies)
+            X, Y = math_helper.XmY_2_XY(Z=Z, AmB_sq=hdiag_sq, omega=energies)
 
         XY_norm_check = np.linalg.norm( (np.dot(X.T,X) - np.dot(Y.T,Y)) -np.eye(self.nroots) )
-        print('check norm of X^TX - Y^YY = {:.3e}'.format(XY_norm_check))
+        print('check norm of X^TX - Y^YY - I = {:.2e}'.format(XY_norm_check))
 
         energies = energies*parameter.Hartree_to_eV
 
-        oscillator_strength = eigen_solver.gen_spectra(energies=energies, 
+        oscillator_strength = spectralib.get_spectra(energies=energies, 
                                                     transition_vector= X+Y, 
-                                                    X_coeff = X/(2**0.5),
+                                                    X = X/(2**0.5),
+                                                    Y = Y/(2**0.5),
                                                     P=P, 
-                                                    name=self.out_name+'-TDDFT-ris', 
+                                                    name=self.out_name+'_TDDFT_ris', 
                                                     spectra=self.spectra,
                                                     RKS=self.RKS,
                                                     print_threshold = self.print_threshold,
