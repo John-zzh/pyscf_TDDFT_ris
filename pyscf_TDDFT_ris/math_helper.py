@@ -562,3 +562,24 @@ def TDDFT_subspace_liear_solver(a, b, sigma, pi, p, q, omega):
     x *= pqnorm
     y *= pqnorm
     return x, y
+
+
+def XmY_2_XY(Z, AmB_sq, omega):
+    '''given Z, (A-B)^2, omega
+       return X, Y
+
+        X-Y = (A-B)^-1/2 Z
+        X+Y = (A-B)^1/2 Z omega^-1 
+    '''
+    AmB_sq = AmB_sq.reshape(-1,1)
+
+    '''AmB = (A - B)'''
+    AmB = AmB_sq**0.5
+
+    XmY = AmB**(-0.5) * Z
+    XpY = (AmB * XmY)/omega
+
+    X = (XpY + XmY)/2
+    Y = (XpY - XmY)/2
+
+    return X, Y

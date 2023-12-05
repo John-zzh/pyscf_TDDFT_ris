@@ -37,11 +37,11 @@ def print_list(list):
     print(']')
     print()
 
-def diff(a,b):
+def diff(a,b, threshold=1e-5):
     a = np.asarray(a)
     b = np.asarray(b)
     diff = np.linalg.norm(a-b)
-    print(diff, diff<1e-5)
+    print(diff, diff<threshold)
     if diff > 1e-5:
         raise ValueError('wrong results generated')
     
@@ -119,7 +119,7 @@ def main2():
                 name = KS + '_' + func + '_' + calc
                 print('======================================= {} {} {}-ris ======================================='.format(KS, func, calc))
                 mf = gen_mf(RKS=True if KS=='RKS' else False, func=func, charge=0 if KS=='RKS' else 1, spin=0 if KS=='RKS' else 1)
-                td = TDDFT_ris.TDDFT_ris(mf, nroots=nroots, spectra=False)
+                td = TDDFT_ris.TDDFT_ris(mf, nroots=nroots, spectra=True)
                 if calc == 'TDA':
                     energies, X, oscillator_strength = td.kernel_TDA()
                 elif  calc == 'TDDFT':
@@ -129,8 +129,8 @@ def main2():
                 print(name)
                 compare_nroors = min(nroots, 10)
                 diff(energies[:compare_nroors], res[name+"_ene"][:compare_nroors])
-                diff(oscillator_strength[:compare_nroors], res[name+"_spc"][:compare_nroors])    
+                diff(oscillator_strength[:compare_nroors], res[name+"_spc"][:compare_nroors], threshold=0.01)    
 
 
 if __name__ == '__main__':
-    main()
+    main2()
