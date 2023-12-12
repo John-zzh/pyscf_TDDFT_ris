@@ -234,7 +234,11 @@ class TDDFT_ris(object):
 
     def gen_B(self, uvQL, n_occ, mo_coeff, calc=None):
         ''' B_pq^P = C_u^p C_v^q Σ_Q (uv|Q)L_Q '''
-        B = einsum("up,vq,uvP->pqP", mo_coeff, mo_coeff, uvQL)
+        # B = einsum("up,vq,uvP->pqP", mo_coeff, mo_coeff, uvQL)
+        tmp = einsum("vq,uvP->uqP", mo_coeff, uvQL)
+
+        B = einsum("up,uqP->pqP", mo_coeff, tmp)
+
 
         '''
                      n_occ          n_vir
