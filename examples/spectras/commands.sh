@@ -1,0 +1,1 @@
+python3 ../../spectra.py -n 20 -f tuancu6ris.txt TDDFT-ris_UV_spectra.txt -ftype lsqc-TDDFT TDDFT-ris -format pdf -name moleculename -nm true
