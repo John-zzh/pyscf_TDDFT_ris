@@ -56,7 +56,7 @@ def read_data(filename, filetype):
     
         data = np.array(data)
 
-    if 'lsqc' in filetype:
+    elif 'lsqc' in filetype:
         # the gaussian output
         with open(filename, 'r') as file:
             lines = file.readlines()
@@ -71,10 +71,11 @@ def read_data(filename, filetype):
                 data.append([energy_ev, oscillator_strength])
     
         data = np.array(data)
+        # print(data)
 
     elif 'ris' in filetype:
         # the pyscf-ris output
-        data = np.loadtxt(filename, usecols=(0, 2), comments='#')
+        data = np.loadtxt(filename, usecols=(0, 3), comments='#')
 
     elif 'sTD' in filetype:
         # the sTDA program output
