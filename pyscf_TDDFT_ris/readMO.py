@@ -1,4 +1,4 @@
-from pyscf import dft
+from pyscf import scf, dft
 import numpy as np
 
 def get_mf_from_fch(fch_file: str, functional: str = None):
@@ -36,16 +36,28 @@ def get_mf_from_fch(fch_file: str, functional: str = None):
 
     if mo_coeff.ndim == 2:
         print('Restricted Kohn-Sham')
-        mf = dft.RKS(mol)
+        if(nbf > nif):
+            old_mf = dft.RKS(mol)
+            mf = scf.remove_linear_dep_(old_mf, threshold=1.1e-6, lindep=1.1e-6)
+        elif(nbf == nif):
+            mf = dft.RKS(mol)
+        else:
+            raise ValueError('nbf<nif. This is impossible.')
         nocc = mol.nelectron // 2
-        mf.mo_occ = np.asarray([2] * nocc + [0] * (nbf - nocc))
+        mf.mo_occ = np.asarray([2] * nocc + [0] * (nif - nocc))
 
     elif mo_coeff.ndim == 3:
         print('Unrestricted Kohn-Sham')
-        mf = dft.UKS(mol)
+        if(nbf > nif):
+            old_mf = dft.UKS(mol)
+            mf = scf.remove_linear_dep_(old_mf, threshold=1.1e-6, lindep=1.1e-6)
+        elif(nbf == nif):
+            mf = dft.UKS(mol)
+        else:
+            raise ValueError('nbf<nif. This is impossible.')
         nocc_a, nocc_b = read_na_and_nb_from_fch(fch_file)
-        mf.mo_occ = np.asarray([[1] * nocc_a + [0] * (nbf - nocc_a),
-                                [1] * nocc_b + [0] * (nbf - nocc_b)])
+        mf.mo_occ = np.asarray([[1] * nocc_a + [0] * (nif - nocc_a),
+                                [1] * nocc_b + [0] * (nif - nocc_b)])
     else:
         raise ValueError('Unknown dimension of mo_coeff: {}'.format(mo_coeff.ndim))
     mf.mo_coeff = mo_coeff
