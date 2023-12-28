@@ -1007,7 +1007,7 @@ class TDDFT_ris(object):
         # print('self.print_threshold', self.print_threshold)
         oscillator_strength = spectralib.get_spectra(energies=energies, 
                                                        transition_vector= X, 
-                                                       X_coeff = X/(2**0.5),
+                                                       x = X/(2**0.5),
                                                        P=P, 
                                                        name=self.out_name+'_TDA_ris', 
                                                        RKS=self.RKS,
