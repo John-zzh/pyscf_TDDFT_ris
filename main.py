@@ -1,5 +1,5 @@
-from pyscf_TDDFT_ris import TDDFT_ris, readMO
-import argparse
+from pyscf_TDDFT_ris import TDDFT_ris, readMO, math_helper
+import argparse, os
 
 def str2bool(str):
     if str.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -53,9 +53,7 @@ args = gen_args()
 
 if __name__ == '__main__':
     
-    import sys,os
-    print(sys.path)
-    print(os.getcwd())
+    print('Woring directory:',os.getcwd())
     '''
     if mf object already has a functional name, 
     then do not need to specify the a_x or (omega, alpha, beta), 
@@ -88,7 +86,7 @@ if __name__ == '__main__':
                             max_iter=args.max_iter,
                             out_name=args.outname,
                             print_threshold=args.print_thre)
-
+    math_helper.show_memory_info('after TDDFT_ris object is created')
     if args.TDA == True:
         energies, X, oscillator_strength = td.kernel_TDA()
     else:

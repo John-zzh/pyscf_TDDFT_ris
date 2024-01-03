@@ -1,0 +1,6 @@
+# eV     nm      cm^-1        oscillator_strength
+nan nan nan nan
+nan nan nan nan
+nan nan nan nan
+nan nan nan nan
+nan nan nan nan

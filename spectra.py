@@ -5,8 +5,13 @@ import argparse
 import math
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.ticker as mtick
-plt.rcParams["font.family"] = "Times New Roman"
+# plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["font.family"] = "Ubuntu"
 plt.rcParams["mathtext.fontset"] = "stix"
+# from matplotlib.font_manager import fontManager
+
+# fonts = set(f.name for f in fontManager.ttflist)
+# print(fonts)
 
 def str2bool(str):
     # print(str)

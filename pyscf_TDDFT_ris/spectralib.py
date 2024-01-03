@@ -95,12 +95,14 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         print('index of LUMO:', n_occ+1)
         n_state = X.shape[1]
         X = X.reshape(n_occ,n_vir,n_state)
-        Y = Y.reshape(n_occ,n_vir,n_state)
+        if isinstance(Y, np.ndarray):
+            Y = Y.reshape(n_occ,n_vir,n_state)
         for state in range(n_state):
             print(f" Excited State  {state+1:4d}:      SingletXXXX   \
                  {energies[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=XXXXX")
             print_coeff(state, X, '->')
-            print_coeff(state, Y, '<-')
+            if isinstance(Y, np.ndarray):
+                print_coeff(state, Y, '<-')
     else:
         print('UKS transition coefficient not implemenetd yet')
 
