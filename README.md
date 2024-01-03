@@ -1,3 +1,6 @@
+**Read this in other languages: [English](README.md), [中文](README_zh.md).**
+
+
 # pyscf-TDDFT-ris (v1.0)
 This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV-vis absorption spectra. The TDDFT-ris calculation starts from a completed SCF calculation, typically a `.fch` or `.molden` file. Also, it can start from the PySCF `mf` object.
 
@@ -31,25 +34,19 @@ This project requires the following packages:
 - pyscf >= 2.1.0
 - MOKIT (ORCA users can skip it)
 
-### (1) install PysCF
-[install PySCF](https://github.com/pyscf/pyscf) is pretty straightforward:
-```
-pip3 install pyscf
-```
-If any difficulty, please follow the [detailed PySCF installation guide](https://gitlab.com/jxzou/qcinstall/-/blob/main/%E7%A6%BB%E7%BA%BF%E5%AE%89%E8%A3%85PySCF-2.x.md).
-
-
-### (2) install MOKIT
+### (1) install MOKIT
 [MOKIT](https://gitlab.com/jxzou/mokit) is used to read the `.fch` file to initiate the TDDFT-ris calculation.
 
-#### MacOS 
-For MacOS users, install MOKIT with `homebrew` is recommended:
-```
-brew install mokit --HEAD --with-py38
-```
-You can change `py38` to any other python version that you can import PySCF, such as py310 
+
 #### Linux 
-For Linux users, download a pre-compiled MOKIT version is most convenient. After downloading the pre-built artifacts, you need to set the following environment
+For Linux users, the most easy way to install [MOKIT](https://gitlab.com/jxzou/mokit) is conda
+```
+conda create -n mokit-py39 python=3.9 # 3.7~3.11 are available
+conda activate mokit-py39
+conda install mokit -c mokit
+```
+
+Alternatively, download a pre-compiled MOKIT version is most convenient. After downloading the pre-built artifacts, you need to set the following environment
 variables (assuming MOKIT is put in `$HOME/software/mokit`) in your `~/.bashrc`:
 ```
 export MOKIT_ROOT=$HOME/software/mokit
@@ -59,12 +56,30 @@ export LD_LIBRARY_PATH=$MOKIT_ROOT/mokit/lib:$LD_LIBRARY_PATH
 export GMS=$HOME/software/gamess/rungms
 ```
 
+#### MacOS 
+For MacOS users, install MOKIT with `homebrew` is recommended:
+```
+brew install mokit --HEAD --with-py38
+```
+You can change `py38` to any other python version that you can import PySCF, such as py310 
+
 If any difficulty, please follow the [detailed MOKIT installation guide](https://gitlab.com/jxzou/mokit), 4 options have been provided.
+
+
+### (2) install PySCF
+[install PySCF](https://github.com/pyscf/pyscf) is pretty straightforward:
+```
+pip3 install pyscf
+pip3 install psutil
+```
+If any difficulty, please follow the [detailed PySCF installation guide](https://gitlab.com/jxzou/qcinstall/-/blob/main/%E7%A6%BB%E7%BA%BF%E5%AE%89%E8%A3%85PySCF-2.x.md).
+
+
 
 
 ORCA users can directly use the `.molden` file to initiate the TDDFT-ris calculation, and MOKIT is not required.
 
-## Installation
+## Instal PysCF_TDDFT_ris
 First, clone this repository to your local machine:
 ```
 git clone git@github.com:John-zzh/pyscf_TDDFT_ris.git
