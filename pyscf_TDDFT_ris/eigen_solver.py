@@ -53,7 +53,7 @@ def Davidson(matrix_vector_product,
         sub_A = sub_A_holder[:size_new,:size_new]
         subgencost_end = time.time()
         subgencost += subgencost_end - subgencost_start
-        # sub_A = math_helper.utriangle_symmetrize(sub_A)
+        sub_A = math_helper.utriangle_symmetrize(sub_A)
         # sub_A = math_helper.symmetrize(sub_A)
 
         '''
@@ -130,7 +130,7 @@ def Davidson_Casida(matrix_vector_product,
     A_size = hdiag.shape[0]
     print('size of A matrix =', A_size)
     size_old = 0
-    size_new = N_states
+    size_new = min([N_states+8, 2*N_states, A_size])
 
     max_N_mv = (max_iter+1)*N_states
 
@@ -154,14 +154,14 @@ def Davidson_Casida(matrix_vector_product,
     '''
 
     V_holder = math_helper.TDA_diag_initial_guess(V_holder = V_holder,
-                                         N_states = N_states,
+                                         N_states = size_new,
                                          hdiag = hdiag)
     subcost = 0
     MVcost = 0
     GScost = 0
     subgencost = 0
     full_cost = 0
-
+    math_helper.show_memory_info('After Davidson initial guess set up')
     print('step maximum residual norm')
     for ii in range(max_iter):
 
@@ -201,7 +201,7 @@ def Davidson_Casida(matrix_vector_product,
                       VU1_holder, WU2_holder, VU2_holder, WU1_holder,
                       VV_holder, WW_holder, VW_holder,
                       size_old, size_new)
-
+        # print('sub_A size =', sub_A.shape)
         subgenend = time.time()
         subgencost += subgenend - subgenstart
 
@@ -243,6 +243,7 @@ def Davidson_Casida(matrix_vector_product,
         max_norm = np.max(r_norms)
         print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
         if max_norm < conv_tol or ii == (max_iter -1):
+            math_helper.show_memory_info('After last Davidson iteration')
             break
 
         index = [r_norms.index(i) for i in r_norms if i > conv_tol]
@@ -286,6 +287,7 @@ def Davidson_Casida(matrix_vector_product,
     for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
         print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/TD_cost))
+    math_helper.show_memory_info('After Davidson Done')
     print('======= TDDFT Eigen Solver Done =======' )
     # energies = omega*parameter.Hartree_to_eV
 

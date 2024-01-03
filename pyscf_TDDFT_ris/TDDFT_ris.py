@@ -2,7 +2,7 @@ from pyscf import gto, lib, dft
 import numpy as np
 import multiprocessing as mp
 from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper, spectralib
-# import matplotlib.pyplot as plt
+
 
 np.set_printoptions(linewidth=250, threshold=np.inf)
 
@@ -11,6 +11,7 @@ einsum = lib.einsum
 
 num_cores = int(mp.cpu_count())
 print("This job can use: " + str(num_cores) + "CPUs")
+
 
 
 
@@ -101,20 +102,20 @@ class TDDFT_ris(object):
         if mf.mo_coeff.ndim == 2:
             self.RKS = True
             self.UKS = False
-            self.n_bf = len(mf.mo_occ)
+            # self.n_if = len(mf.mo_occ)
             self.n_occ = sum(mf.mo_occ>0)
-            self.n_vir = self.n_bf - self.n_occ
+            self.n_vir = sum(mf.mo_occ==0)
             print('n_occ =',self.n_occ)
             print('n_vir =',self.n_vir)
 
         elif mf.mo_coeff.ndim == 3:
             self.RKS = False
             self.UKS = True
-            self.n_bf = len(mf.mo_occ[0])
+            # self.n_if = len(mf.mo_occ[0])
             self.n_occ_a = sum(mf.mo_occ[0]>0)
-            self.n_vir_a = self.n_bf - self.n_occ_a
+            self.n_vir_a = sum(mf.mo_occ[0]==0)
             self.n_occ_b = sum(mf.mo_occ[1]>0)
-            self.n_vir_b = self.n_bf - self.n_occ_b
+            self.n_vir_b = sum(mf.mo_occ[1]==0)
             print('n_occ for alpha spin =',self.n_occ_a)
             print('n_vir for alpha spin =',self.n_vir_a)
             print('n_occ for beta spin =',self.n_occ_b)
@@ -198,7 +199,7 @@ class TDDFT_ris(object):
         eri3c = pmol.intor('int3c2e'+tag,
                             shls_slice=(0,mol.nbas,0,mol.nbas,
                             mol.nbas,mol.nbas+auxmol.nbas))
-        
+        print('mol.nbas =', mol.nbas)
         print('Three center ERI shape', eri3c.shape)
 
         return eri2c, eri3c
@@ -235,9 +236,11 @@ class TDDFT_ris(object):
     def gen_B(self, uvQL, n_occ, mo_coeff, calc=None):
         ''' B_pq^P = C_u^p C_v^q Σ_Q (uv|Q)L_Q '''
         # B = einsum("up,vq,uvP->pqP", mo_coeff, mo_coeff, uvQL)
+        print('mo_coeff, uvQL', mo_coeff.shape, uvQL.shape)
         tmp = einsum("vq,uvP->uqP", mo_coeff, uvQL)
-
+        print('tmp', tmp.shape)
         B = einsum("up,uqP->pqP", mo_coeff, tmp)
+        print('B', B.shape)
 
 
         '''
@@ -336,6 +339,8 @@ class TDDFT_ris(object):
         delta_hdiag = np.repeat(vir, n_occ, axis=0) - np.repeat(occ, n_vir, axis=1)
 
         hdiag = delta_hdiag.reshape(n_occ*n_vir)
+        # print(hdiag)
+        # print('delta_hdiag[-1,0]', delta_hdiag[-1,0]*parameter.Hartree_to_eV)
         # Hdiag = np.vstack((hdiag, hdiag))
         # Hdiag = Hdiag.reshape(-1)
         if sqrt == False:
@@ -1007,7 +1012,8 @@ class TDDFT_ris(object):
         # print('self.print_threshold', self.print_threshold)
         oscillator_strength = spectralib.get_spectra(energies=energies, 
                                                        transition_vector= X, 
-                                                       x = X/(2**0.5),
+                                                       X=X/(2**0.5),
+                                                       Y=None,
                                                        P=P, 
                                                        name=self.out_name+'_TDA_ris', 
                                                        RKS=self.RKS,
@@ -1094,6 +1100,7 @@ class TDDFT_ris(object):
         #     name = 'TDDFT-ris'
             
     def kernel_TDDFT(self):     
+        # math_helper.show_memory_info('At the beginning')
         if self.a_x != 0:
             '''hybrid TDDFT'''
             if self.RKS:
@@ -1103,7 +1110,7 @@ class TDDFT_ris(object):
             elif self.UKS:
                 P = self.gen_UKS_P()
                 TDDFT_hybrid_mv, hdiag = self.gen_UKS_TDDFT_mv()
-
+            math_helper.show_memory_info('After gen_TDDFT_mv')
             energies, X, Y = eigen_solver.Davidson_Casida(TDDFT_hybrid_mv, hdiag,
                                                             N_states = self.nroots,
                                                             conv_tol = self.conv_tol,
