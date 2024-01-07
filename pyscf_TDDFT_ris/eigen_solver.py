@@ -161,7 +161,7 @@ def Davidson_Casida(matrix_vector_product,
     GScost = 0
     subgencost = 0
     full_cost = 0
-    math_helper.show_memory_info('After Davidson initial guess set up')
+    # math_helper.show_memory_info('After Davidson initial guess set up')
     print('step maximum residual norm')
     for ii in range(max_iter):
 
@@ -243,7 +243,7 @@ def Davidson_Casida(matrix_vector_product,
         max_norm = np.max(r_norms)
         print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
         if max_norm < conv_tol or ii == (max_iter -1):
-            math_helper.show_memory_info('After last Davidson iteration')
+            # math_helper.show_memory_info('After last Davidson iteration')
             break
 
         index = [r_norms.index(i) for i in r_norms if i > conv_tol]
@@ -287,7 +287,7 @@ def Davidson_Casida(matrix_vector_product,
     for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
         print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/TD_cost))
-    math_helper.show_memory_info('After Davidson Done')
+    # math_helper.show_memory_info('After Davidson Done')
     print('======= TDDFT Eigen Solver Done =======' )
     # energies = omega*parameter.Hartree_to_eV
 

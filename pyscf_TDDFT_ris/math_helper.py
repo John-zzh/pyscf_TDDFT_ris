@@ -3,7 +3,7 @@
 import numpy as np
 import scipy
 import time
-import os, psutil
+# import os, psutil
 np.set_printoptions(linewidth=250, threshold=np.inf, precision=3)
 
 
@@ -611,9 +611,9 @@ def XmY_2_XY(Z, AmB_sq, omega):
 
     return X, Y
 
-def show_memory_info(hint):
-    pid = os.getpid()
-    p = psutil.Process(pid)
-    info = p.memory_full_info()
-    memory = info.uss / 1024**3
-    print('{:>50} memory used: {:<.2f} GB'.format(hint, memory))
+# def show_memory_info(hint):
+#     pid = os.getpid()
+#     p = psutil.Process(pid)
+#     info = p.memory_full_info()
+#     memory = info.uss / 1024**3
+#     print('{:>50} memory used: {:<.2f} GB'.format(hint, memory))

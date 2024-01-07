@@ -1,6 +1,6 @@
-from pyscf_TDDFT_ris import TDDFT_ris, readMO, math_helper
+from pyscf_TDDFT_ris import TDDFT_ris, readMO, math_helper, ris_pt2
 import argparse, os
-
+import time
 def str2bool(str):
     if str.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
@@ -28,7 +28,17 @@ def gen_args():
     parser.add_argument('-t',    '--conv_tol',    type=float,  default=1e-5,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
     parser.add_argument('-pt',   '--print_thre',  type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
-
+    
+    
+    parser.add_argument('-CSF', '--CSF_trunc',  type=str2bool,   default=False,    help='truncate the CSF basis to speedup the calculation')
+    parser.add_argument('-spectra', '--spectra',  type=str2bool,   default=True,    help='print out the spectra file')
+    parser.add_argument('-specw', '--spectra_window',  type=float,   default=10.0,    help='the window of the spectra up to, in eV')
+    parser.add_argument('-pt2_tol', '--pt2_tol',  type=float,   default=1e-4, help='the threshold of S-CSF PT2 evaluation')
+    parser.add_argument('-N', '--N_cpus',           type=int,   default=10, help='the number of CPUs to use')
+    parser.add_argument('-single', '--single',           type=str2bool,   default='False', help='use single precision')
+    parser.add_argument('-approx', '--approximation',           type=str,   default='ris', help='ris sTDA')
+    parser.add_argument('-truncMO', '--truncMO',           type=str2bool,   default=False, help='trunc MO at early stage')
+    
     args = parser.parse_args()
 
     if args.filename == None:
@@ -50,6 +60,7 @@ def gen_args():
 
 args = gen_args()
 
+print('args.nroots', args.nroots)
 
 if __name__ == '__main__':
     
@@ -74,20 +85,49 @@ if __name__ == '__main__':
                                        functional=args.functional,
                                        basis=args.basis)
     
-    td = TDDFT_ris.TDDFT_ris(mf=mf, 
-                            theta=args.theta,
-                            add_p=args.add_p, 
-                            a_x=args.a_x,
-                            omega=args.omega,
-                            alpha=args.alpha,
-                            beta=args.beta,
-                            conv_tol=args.conv_tol,
-                            nroots=args.nroots, 
-                            max_iter=args.max_iter,
-                            out_name=args.outname,
-                            print_threshold=args.print_thre)
-    math_helper.show_memory_info('after TDDFT_ris object is created')
+    if args.CSF_trunc == False:
+        print('using Davidson diagonalization')
+        td = TDDFT_ris.TDDFT_ris(mf=mf, 
+                        theta=args.theta,
+                        add_p=args.add_p, 
+                        a_x=args.a_x,
+                        omega=args.omega,
+                        alpha=args.alpha,
+                        beta=args.beta,
+                        conv_tol=args.conv_tol,
+                        nroots=args.nroots, 
+                        max_iter=args.max_iter,
+                        out_name=args.outname,
+                        spectra = args.spectra,
+                        print_threshold=args.print_thre)
+    else:
+        print('using CSF truncation')
+        td = ris_pt2.TDDFT_ris_PT2(mf=mf, 
+                        theta=args.theta,
+                        add_p=args.add_p, 
+                        a_x=args.a_x,
+                        omega=args.omega,
+                        alpha=args.alpha,
+                        beta=args.beta,
+                        conv_tol=args.conv_tol,
+                        nroots=args.nroots, 
+                        out_name=args.outname,
+                        print_threshold=args.print_thre,
+                        method=args.approximation,
+                        spectra = args.spectra,
+                        spectra_window=args.spectra_window,
+                        parallel=True,
+                        N_cpus=args.N_cpus,
+                        pt2_tol=args.pt2_tol,
+                        single=args.single,
+                        truncMO=args.truncMO)
+
+    # math_helper.show_memory_info('after TDDFT_ris object is created')
+
+    start = time.time()
     if args.TDA == True:
         energies, X, oscillator_strength = td.kernel_TDA()
     else:
         energies, X, Y, oscillator_strength = td.kernel_TDDFT()
+    end = time.time()
+    print('total ris time:', end-start)

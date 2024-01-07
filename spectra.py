@@ -34,7 +34,7 @@ def gen_args():
     parser.add_argument('-f', '--files',   type=str, default=[], nargs='+', help='a lsit of spectra files path')
     parser.add_argument('-ftype', '--filetypes',   type=str, default=[], nargs='+', help='the corresponding lsit of file types')
 
-    parser.add_argument('-name', '--molname',   type=str, default='', help='file name')
+    parser.add_argument('-name', '--molname',   type=str, default='', help='output file name')
     parser.add_argument('-format', '--format',   type=str, default='pdf', help='png, pdf, eps')
     parser.add_argument('-dpi', '--dpi',   type=int, default=300, help='dpi, 300, 600')
 
@@ -107,6 +107,9 @@ def get_line_style(filetype):
 
     style_dict['lsqc-TDDFT'] = ('#e377c2','-.')
     style_dict['lsqc-TDA'] = ('#e377c2','-.')
+
+    style_dict['CSF-TDDFT-ris'] = ('#2ca02c','-')
+    style_dict['CSF-TDA-ris'] = ('#2ca02c','-')
 
     style_dict['sTDDFT'] = ('#e377c2','-')
     style_dict['sTDA'] = ('#e377c2','-')

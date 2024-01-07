@@ -29,7 +29,8 @@ class TDDFT_ris(object):
                 spectra: bool = True,
                 pyscf_TDDFT_vind: callable = None,
                 out_name: str = '',
-                print_threshold: float = 0.05):
+                print_threshold: float = 0.05,
+                single: bool = False):
         '''
         add_p: whether add p orbital to aux basis
         '''
@@ -48,7 +49,9 @@ class TDDFT_ris(object):
         self.spectra = spectra
         self.out_name = out_name
         self.print_threshold = print_threshold
-        # print('self.print_threshold',self.print_threshold)
+        self.single = single
+        print('self.nroots', self.nroots)
+        print('use single precision?', self.single)
         if hasattr(mf, 'xc'):
             functional = mf.xc.lower()
             self.functional = mf.xc
@@ -199,7 +202,10 @@ class TDDFT_ris(object):
         eri3c = pmol.intor('int3c2e'+tag,
                             shls_slice=(0,mol.nbas,0,mol.nbas,
                             mol.nbas,mol.nbas+auxmol.nbas))
-        print('mol.nbas =', mol.nbas)
+        # print('mol.nbas =', mol.nbas)
+        if self.single:
+            eri2c = eri2c.astype(np.float32)
+            eri3c = eri3c.astype(np.float32)    
         print('Three center ERI shape', eri3c.shape)
 
         return eri2c, eri3c
@@ -236,11 +242,13 @@ class TDDFT_ris(object):
     def gen_B(self, uvQL, n_occ, mo_coeff, calc=None):
         ''' B_pq^P = C_u^p C_v^q Σ_Q (uv|Q)L_Q '''
         # B = einsum("up,vq,uvP->pqP", mo_coeff, mo_coeff, uvQL)
-        print('mo_coeff, uvQL', mo_coeff.shape, uvQL.shape)
+        # print('mo_coeff, uvQL', mo_coeff.shape, uvQL.shape)
+        if self.single == True:
+            mo_coeff = mo_coeff.astype(np.float32)
         tmp = einsum("vq,uvP->uqP", mo_coeff, uvQL)
-        print('tmp', tmp.shape)
+        # print('tmp', tmp.shape)
         B = einsum("up,uqP->pqP", mo_coeff, tmp)
-        print('B', B.shape)
+        # print('B', B.shape)
 
 
         '''
@@ -1110,7 +1118,7 @@ class TDDFT_ris(object):
             elif self.UKS:
                 P = self.gen_UKS_P()
                 TDDFT_hybrid_mv, hdiag = self.gen_UKS_TDDFT_mv()
-            math_helper.show_memory_info('After gen_TDDFT_mv')
+            # math_helper.show_memory_info('After gen_TDDFT_mv')
             energies, X, Y = eigen_solver.Davidson_Casida(TDDFT_hybrid_mv, hdiag,
                                                             N_states = self.nroots,
                                                             conv_tol = self.conv_tol,
@@ -1152,7 +1160,6 @@ class TDDFT_ris(object):
                                                     print_threshold = self.print_threshold,
                                                     n_occ=self.n_occ if self.RKS else (self.n_occ_a, self.n_occ_b),
                                                     n_vir=self.n_vir if self.RKS else (self.n_vir_a, self.n_vir_b))
-        
         
         # print('energies =', energies)
         return energies, X, Y, oscillator_strength
