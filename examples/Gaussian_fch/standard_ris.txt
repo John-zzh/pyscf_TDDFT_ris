@@ -1,0 +1,131 @@
+
+--------------------------------------------------------
+Warning in subroutine check_nobasistransform_in_fch: keyword 'int=nobasistransform'
+not detected in file gau9136.fch
+It might be dangerous to transfer orbitals if you did not specify this keyword
+in .gjf file.
+--------------------------------------------------------
+This job can use: 16CPUs
+using one s function per atom as the auxilibary basis
+You are running TDDFT-ris method
+args.nroots 10
+Woring directory: /home/jowsl/pyscf_TDDFT_ris/examples/Gaussian_fch
+nbf = 824
+nif = 821
+mo_coeff.shape (824, 821)
+mo_energy.shape (821,)
+Restricted Kohn-Sham
+Applying remove_linear_dep_ on SCF object.
+Using canonical orthogonalization with threshold 1.1e-06
+functional:  m06-2x
+using Davidson diagonalization
+self.nroots 10
+use single precision? False
+loading default XC functional paramters from parameter.py
+use hybrid XC functional
+cartesian or spherical electron integral = cart
+n_occ = 149
+n_vir = 672
+                 after TDDFT_ris object is created memory used: 0.18 GB
+Asigning minimal auxiliary basis set
+The exponent alpha set as theta/R^2 
+global parameter theta = 0.2
+auxmol.cart = True
+Three center ERI shape (824, 824, 70)
+====== Davidson Diagonalization Starts ======
+size of A matrix = 100128
+step max||r||   sub_A.shape
+1    1.0166e-01 18   
+2    8.3451e-02 28   
+3    3.6788e-02 38   
+4    8.6766e-03 48   
+5    9.7299e-03 58   
+6    1.8120e-02 68   
+7    1.3835e-02 78   
+8    9.7007e-03 87   
+9    7.6034e-03 95   
+10   3.0248e-03 101  
+11   1.3117e-03 104  
+12   5.0065e-04 107  
+13   2.1299e-04 110  
+14   1.2834e-04 113  
+15   6.4734e-05 115  
+16   3.3561e-05 117  
+17   1.8301e-05 119  
+18   8.0212e-06 121  
+Finished in 18 steps, 34.76 seconds
+Maximum residual norm = 8.02e-06
+Final subspace size = 121
+MVcost     18.6222s 53.58%
+GScost     12.1704s 35.02%
+subgencost 1.2853s 3.70%
+subcost    1.1142s 3.21%
+full_cost  0.5818s 1.67%
+========== Davidson Diagonalization Done ==========
+================================================
+eV       nm       cm^-1    oscillator strength
+3.016    411      24323    1.45191316
+3.546    350      28604    0.07032602
+3.865    321      31172    0.00005349
+4.152    299      33488    0.00000464
+4.191    296      33801    0.02593974
+4.221    294      34042    0.17806602
+4.422    281      35666    0.30782705
+4.924    252      39713    0.05727365
+5.076    244      40943    0.02663412
+5.135    242      41420    0.16615825
+spectra data written to 6-31+_112_davidson-_TDA_ris_UV_spectra.txt
+print_threshold: 0.1
+print RKS transition coefficients larger than 1.00e-01
+index of HOMO: 149
+index of LUMO: 150
+ Excited State     1:      SingletXXXX                       3.0157 eV  411.42 nm  f=1.4519   <S**2>=XXXXX
+            142 -> 151              0.10278
+            149 -> 150             -0.67292
+ Excited State     2:      SingletXXXX                       3.5464 eV  349.85 nm  f=0.0703   <S**2>=XXXXX
+            146 -> 150             -0.59852
+            146 -> 151              0.16832
+            149 -> 151             -0.24141
+            149 -> 152              0.12829
+ Excited State     3:      SingletXXXX                       3.8649 eV  321.02 nm  f=0.0001   <S**2>=XXXXX
+            148 -> 150              0.69722
+            148 -> 151              0.10047
+ Excited State     4:      SingletXXXX                       4.1520 eV  298.82 nm  f=0.0000   <S**2>=XXXXX
+            147 -> 150             -0.69959
+ Excited State     5:      SingletXXXX                       4.1908 eV  296.05 nm  f=0.0259   <S**2>=XXXXX
+            143 -> 150             -0.57306
+            143 -> 151             -0.15011
+            146 -> 151             -0.12494
+            149 -> 151              0.16916
+            149 -> 153             -0.14139
+            149 -> 155              0.10001
+ Excited State     6:      SingletXXXX                       4.2207 eV  293.96 nm  f=0.1781   <S**2>=XXXXX
+            143 -> 150             -0.13893
+            146 -> 150              0.21517
+            146 -> 151             -0.11115
+            149 -> 150             -0.10362
+            149 -> 151             -0.58884
+ Excited State     7:      SingletXXXX                       4.4220 eV  280.57 nm  f=0.3078   <S**2>=XXXXX
+            142 -> 150              0.30132
+            146 -> 150             -0.20585
+            146 -> 151             -0.49321
+            149 -> 152             -0.22928
+ Excited State     8:      SingletXXXX                       4.9238 eV  251.98 nm  f=0.0573   <S**2>=XXXXX
+            136 -> 151              0.11246
+            142 -> 150             -0.55939
+            143 -> 150              0.13684
+            146 -> 150             -0.11313
+            146 -> 151             -0.21732
+            149 -> 152             -0.17586
+ Excited State     9:      SingletXXXX                       5.0763 eV  244.41 nm  f=0.0266   <S**2>=XXXXX
+            140 -> 150             -0.41813
+            140 -> 151              0.28960
+            142 -> 151             -0.16451
+            146 -> 151             -0.25242
+            149 -> 152              0.27755
+            149 -> 157             -0.12425
+ Excited State    10:      SingletXXXX                       5.1354 eV  241.60 nm  f=0.1662   <S**2>=XXXXX
+            147 -> 158              0.15289
+            147 -> 175              0.10940
+            148 -> 158              0.62806
+total ris time: 37.993733406066895
