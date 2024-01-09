@@ -105,7 +105,7 @@ class TDDFT_ris_PT2(TDDFT_ris.TDDFT_ris):
 
         ''' ris method '''
         if self.method == 'ris':
-            auxmol = self.gen_auxmol(theta=0.2, add_p=False)
+            auxmol = self.gen_auxmol(theta=0.2, add_p=self.add_p)
             eri2c, eri3c = self.gen_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega=0)
             uvQL = self.gen_uvQL(eri2c=eri2c, eri3c=eri3c)
 
