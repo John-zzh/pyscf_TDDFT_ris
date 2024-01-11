@@ -334,7 +334,8 @@ class TDDFT_ris(object):
             B_ia_ex, B_ij_ex, B_ab_ex = self.gen_B(uvQL=uvQL_ex, 
                                                    n_occ=n_occ, 
                                                    mo_coeff=mo_coeff,
-                                                   calc='exchange_only')           
+                                                   calc='exchange_only')
+        print('type(B_ia_cl)',B_ia_cl.dtype)           
         return B_ia_cl, B_ia_ex, B_ij_ex, B_ab_ex
 
     
@@ -386,6 +387,7 @@ class TDDFT_ris(object):
             '''
             B_right_jb_V = einsum("jbP,jbm->Pm", B_right, V)
             iajb_V = einsum("iaP,Pm->iam", B_left, B_right_jb_V)
+            # print('iajb_V.dtype', iajb_V.dtype)
             return iajb_V
         return iajb_fly
     
@@ -397,6 +399,7 @@ class TDDFT_ris(object):
             '''
             B_ab_V = einsum("abP,jbm->jPam", B_ab, V)
             ijab_V = einsum("ijP,jPam->iam", B_ij, B_ab_V)
+            # print('ijab_V.dtype', ijab_V.dtype)
             return ijab_V
         return ijab_fly
     
@@ -409,6 +412,7 @@ class TDDFT_ris(object):
             '''
             B_ib_V = einsum("ibP,jbm->Pijm", B_ia, V)
             ibja_V = einsum("jaP,Pijm->iam", B_ia, B_ib_V)
+            # print('ibja_V.dtype',ibja_V.dtype)
             return ibja_V
         return ibja_fly
 
@@ -1009,11 +1013,12 @@ class TDDFT_ris(object):
 
 
         # print('min(hdiag)', min(hdiag)*parameter.Hartree_to_eV)
-        energies, X = eigen_solver.Davidson(matrix_vector_product = TDA_mv,
-                                                    hdiag = hdiag,
-                                                    N_states = self.nroots,
-                                                    conv_tol = self.conv_tol,
-                                                    max_iter = self.max_iter)
+        energies, X = eigen_solver.Davidson(matrix_vector_product=TDA_mv,
+                                            hdiag=hdiag,
+                                            N_states=self.nroots,
+                                            conv_tol=self.conv_tol,
+                                            max_iter=self.max_iter,
+                                            single=self.single)
         energies = energies*parameter.Hartree_to_eV
         # print('energies =', energies)
 
@@ -1122,7 +1127,8 @@ class TDDFT_ris(object):
             energies, X, Y = eigen_solver.Davidson_Casida(TDDFT_hybrid_mv, hdiag,
                                                             N_states = self.nroots,
                                                             conv_tol = self.conv_tol,
-                                                            max_iter = self.max_iter)
+                                                            max_iter = self.max_iter,
+                                                            single=self.single)
         elif self.a_x == 0:
             '''pure TDDFT'''
             if self.RKS:
@@ -1134,9 +1140,10 @@ class TDDFT_ris(object):
                 P = self.gen_UKS_P()
             # print('min(hdiag_sq)', min(hdiag_sq)**0.5*parameter.Hartree_to_eV)
             energies_sq, Z = eigen_solver.Davidson(TDDFT_pure_mv, hdiag_sq,
-                                                N_states = self.nroots,
-                                                conv_tol = self.conv_tol,
-                                                max_iter = self.max_iter)
+                                                N_states=self.nroots,
+                                                conv_tol=self.conv_tol,
+                                                max_iter=self.max_iter,
+                                                single=self.single)
             
             # print('check norm of Z', np.linalg.norm(np.dot(Z.T,Z) - np.eye(Z.shape[1])))
             energies = energies_sq**0.5

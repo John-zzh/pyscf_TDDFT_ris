@@ -96,6 +96,7 @@ if __name__ == '__main__':
                         beta=args.beta,
                         conv_tol=args.conv_tol,
                         nroots=args.nroots, 
+                        single=args.single,
                         max_iter=args.max_iter,
                         out_name=args.outname,
                         spectra = args.spectra,

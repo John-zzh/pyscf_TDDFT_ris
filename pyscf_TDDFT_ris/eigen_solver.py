@@ -7,7 +7,8 @@ def Davidson(matrix_vector_product,
                     hdiag,
                     N_states=20,
                     conv_tol=1e-5,
-                    max_iter=25 ):
+                    max_iter=25,
+                    single=False ):
     '''
     AX = XΩ
     Davidson frame, can use different initial guess and preconditioner
@@ -24,9 +25,9 @@ def Davidson(matrix_vector_product,
     size_new = min([N_states+8, 2*N_states, A_size])
 
     max_N_mv = max_iter*N_states + size_new
-    V_holder = np.zeros((A_size, max_N_mv))
+    V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64)
     W_holder = np.zeros_like(V_holder)
-    sub_A_holder = np.zeros((max_N_mv,max_N_mv))
+    sub_A_holder = np.zeros((max_N_mv,max_N_mv),dtype=np.float32 if single else np.float64)
     '''
     generate the initial guesss and put into the basis holder V_holder
     '''
@@ -118,7 +119,8 @@ def Davidson_Casida(matrix_vector_product,
                         hdiag,
                         N_states=20,
                         conv_tol=1e-5,
-                        max_iter=25 ):
+                        max_iter=25,
+                        single=False ):
     '''
     [ A B ] X - [1   0] Y Ω = 0
     [ B A ] Y   [0  -1] X   = 0
@@ -133,14 +135,15 @@ def Davidson_Casida(matrix_vector_product,
     size_new = min([N_states+8, 2*N_states, A_size])
 
     max_N_mv = (max_iter+1)*N_states
+    
 
-    V_holder = np.zeros((A_size, max_N_mv))
+    V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64)
     W_holder = np.zeros_like(V_holder)
 
     U1_holder = np.zeros_like(V_holder)
     U2_holder = np.zeros_like(V_holder)
 
-    VU1_holder = np.zeros((max_N_mv,max_N_mv))
+    VU1_holder = np.zeros((max_N_mv,max_N_mv),dtype=np.float32 if single else np.float64)
     VU2_holder = np.zeros_like(VU1_holder)
     WU1_holder = np.zeros_like(VU1_holder)
     WU2_holder = np.zeros_like(VU1_holder)
