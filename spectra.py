@@ -31,8 +31,10 @@ def gen_args():
     parser.add_argument('-lorentzian', '--lorentzian',   type=str2bool, default=False, help='lorentzian')
     parser.add_argument('-nm', '--eV2nm_broaden', type=str2bool, default=False, help='broaden in eV and then use nm unit')
 
+    parser.add_argument('-xlimit', '--xlimit',   type=float, default=[], nargs='+',  help='limit of x axis, in eV or nm')
     parser.add_argument('-f', '--files',   type=str, default=[], nargs='+', help='a lsit of spectra files path')
     parser.add_argument('-ftype', '--filetypes',   type=str, default=[], nargs='+', help='the corresponding lsit of file types')
+
 
     parser.add_argument('-name', '--molname',   type=str, default='', help='output file name')
     parser.add_argument('-format', '--format',   type=str, default='pdf', help='png, pdf, eps')
@@ -61,7 +63,7 @@ def read_data(filename, filetype):
     
         data = np.array(data)
 
-    elif 'lsqc' in filetype:
+    elif 'lsqc' in filetype or 'GEBF' in filetype:
         # the gaussian output
         with open(filename, 'r') as file:
             lines = file.readlines()
@@ -107,6 +109,13 @@ def get_line_style(filetype):
 
     style_dict['lsqc-TDDFT'] = ('#e377c2','-.')
     style_dict['lsqc-TDA'] = ('#e377c2','-.')
+
+    style_dict['GEBF-TDDFT'] = ('#ed0771','-')
+    style_dict['GEBF-TDA'] = ('#e377c2','-')
+
+    style_dict['GEBF-TDDFT-risp'] = ('#071fed','--')
+    style_dict['GEBF-TDA-risp'] = ('#071fed','--')
+
 
     style_dict['CSF-TDDFT-ris'] = ('#2ca02c','-')
     style_dict['CSF-TDA-ris'] = ('#2ca02c','-')
@@ -214,6 +223,8 @@ def overlap_plot():
         xlabel = 'Wavelength [nm]'
     else:
         xlabel = 'Energy [eV]'
+
+    ax.set_xlim(args.xlimit[0], args.xlimit[1])
 
     ax.set_xlabel(xlabel,y=0.20, fontsize=8)
     ax.set_ylabel(r"$\sigma\ [\mathrm{bohr}^2]$", fontsize=8)
