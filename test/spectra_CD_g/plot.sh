@@ -3,6 +3,6 @@ awk 'NR >1 {print $5}' lvzilast_td_de_1.fch-_TDDFT_ris_UV_spectra.txt > ris_CD.t
 awk 'NR >1 {print $6}' lvzilast_td_de_1.fch-_TDDFT_ris_UV_spectra.txt > ris_gfactor.txt
 
 
-python spectra_CD_g.py --eV_file lsqc_eV.txt --CD_file  ris_CD.txt --filetypes lsqc-TDDFT-risp --outname lsqcCD --eV2nm_broaden True --nstates 11 --label 'Rotatory Strength'
+python spectra_CD_g.py --eV_file lsqc_eV.txt --CD_file  ris_CD.txt --filetypes lsqc-TDDFT-risp --outname lsqcCD --eV2nm_broaden True --nstates 11 --ylabel 'Rotatory Strength'
 
-python spectra_CD_g.py --eV_file lsqc_eV.txt --CD_file  ris_gfactor.txt --filetypes lsqc-TDDFT-risp --outname lsqcgfactor --eV2nm_broaden True --nstates 11 --label 'g factor'
+python spectra_CD_g.py --eV_file lsqc_eV.txt --g_file  ris_gfactor.txt --filetypes lsqc-TDDFT-risp --outname lsqcgfactor --eV2nm_broaden True --nstates 11 --ylabel 'g factor'
