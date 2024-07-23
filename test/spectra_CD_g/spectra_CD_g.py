@@ -30,7 +30,7 @@ def gen_args():
 
     parser.add_argument('--eV2nm_broaden', type=str2bool, default=False, help='broaden in eV and then use nm unit')
 
-    # parser.add_argument('--xlimit',    type=float,default=[1,5], nargs='+',  help='limit of x axis, in eV or nm')
+    parser.add_argument('--xlimit',    type=float,default=[], nargs='+',  help='limit of x axis, in eV or nm')
     parser.add_argument('--eV_file',   type=str,  default=[], nargs='+', help='eV file name')
     parser.add_argument('--CD_file',   type=str,  default=[], nargs='+', help='CD file name')
     parser.add_argument('--g_file',    type=str,  default=[], nargs='+',  help='g file name')
@@ -143,7 +143,8 @@ def overlap_plot():
     else:
         xlabel = 'Energy [eV]'
 
-    # ax.set_xlim(args.xlimit[0], args.xlimit[1])
+    if args.xlimit:
+        ax.set_xlim(args.xlimit[0], args.xlimit[1])
 
     ax.set_xlabel(xlabel,y=0.20, fontsize=8)
     ax.set_ylabel(args.ylabel, fontsize=8)
