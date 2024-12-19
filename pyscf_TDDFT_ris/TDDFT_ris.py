@@ -100,7 +100,7 @@ class TDDFT_ris(object):
             self.eri_tag = '_cart'
         else:
             self.eri_tag = '_sph'
-        print('cartesian or spherical electron integral =',self.eri_tag.split('_')[1])
+        print('cartesian or spherical electron integral =',self.eri_tag)
 
         if mf.mo_coeff.ndim == 2:
             self.RKS = True
@@ -273,7 +273,7 @@ class TDDFT_ris(object):
             '''
             For common bybrid DFT, exchange and coulomb term use same set of B matrix
             For range-seperated bybrid DFT, (ij|ab) and (ib|ja) use different 
-            set of B matrix than (ia|jb), because of the RSH eri2c and eri3c
+            set of B matrix than (ia|jb), because of the RSH eri2c and eri3c.
             B_ia_ex is for (ib|ja)
             '''
             B_ij = math_helper.copy_array(B[:n_occ,:n_occ,:])

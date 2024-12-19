@@ -47,7 +47,7 @@ rsh_func['lc-blyp'] = (0.33, 0, 1.0)
 rsh_func['lc-PBE'] = (0.47, 0, 1.0)
 
 '''
-hybrid functionals, hybrid component a_x
+pure or hybrid functionals, hybrid component a_x
 '''
 hbd_func = {}
 hbd_func['pbe'] = 0
