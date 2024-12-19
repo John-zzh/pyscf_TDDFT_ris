@@ -1,4 +1,5 @@
-from pyscf_TDDFT_ris import TDDFT_ris, readMO, math_helper, ris_pt2
+from pyscf_TDDFT_ris import readMO, math_helper, ris_pt2
+
 import argparse, os
 import time
 def str2bool(str):
@@ -12,7 +13,7 @@ def str2bool(str):
 def gen_args():
     parser = argparse.ArgumentParser(description='Davidson')
     parser.add_argument('-f',    '--filename',    type=str,   default=None,      help='.fch filename (molecule.fch)')
-    parser.add_argument('-fout',    '--outname',     type=str,   default=None,      help='output file name')
+    parser.add_argument('-fout', '--outname',     type=str,   default=None,      help='output file name')
     parser.add_argument('-func', '--functional',  type=str,   default=None,      help='functional name (pbe0)')
     parser.add_argument('-b',    '--basis',       type=str,   default=None,      help='basis set name (def2-SVP)')
     parser.add_argument('-ax',   '--a_x',         type=float, default=None,      help='HF component in the hybrid functional')
@@ -23,11 +24,16 @@ def gen_args():
     parser.add_argument('-th',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
     parser.add_argument('-p',    '--add_p',       type=str2bool,  default=False,     help='add an extra p function to the auxilibary basis')
 
+    parser.add_argument('-J',    '--J_fit',       type=str,  default='s',   choices=['s', 'sp', 'spd'],  help='J fitting basis')
+    parser.add_argument('-K',    '--K_fit',       type=str,  default='s',   choices=['s', 'sp', 'spd'],  help='K fitting basis')
+
+    parser.add_argument('-Ktrunc',    '--Ktrunc',       type=float,  default=0,     help='eV truncaion threshold for the MO in K')
+
     parser.add_argument('-tda',  '--TDA',         type=str2bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
     parser.add_argument('-n',    '--nroots',      type=int,   default=20,        help='the number of states you want to solve')
     parser.add_argument('-t',    '--conv_tol',    type=float,  default=1e-5,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
-    parser.add_argument('-pt',   '--print_thre',  type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
+    parser.add_argument('-pt',   '--print_threshold',  type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
     
     
     parser.add_argument('-CSF', '--CSF_trunc',  type=str2bool,   default=False,    help='truncate the CSF basis to speedup the calculation')
@@ -35,7 +41,7 @@ def gen_args():
     parser.add_argument('-specw', '--spectra_window',  type=float,   default=10.0,    help='the window of the spectra up to, in eV')
     parser.add_argument('-pt2_tol', '--pt2_tol',  type=float,   default=1e-4, help='the threshold of S-CSF PT2 evaluation')
     parser.add_argument('-N', '--N_cpus',           type=int,   default=10, help='the number of CPUs to use')
-    parser.add_argument('-single', '--single',           type=str2bool,   default='False', help='use single precision')
+    parser.add_argument('-single', '--single',           type=str2bool,   default='True', help='use single precision')
     parser.add_argument('-approx', '--approximation',           type=str,   default='ris', help='ris sTDA')
     parser.add_argument('-truncMO', '--truncMO',           type=str2bool,   default=False, help='trunc MO at early stage')
     
@@ -50,12 +56,12 @@ def gen_args():
     else:
         args.outname = args.outname + '-'
 
-    if args.add_p == True:
-        print('using one s and one p function per atom as the auxilibary basis')
-        print('You are running TDDFT-ris+p method')
-    else:
-        print('using one s function per atom as the auxilibary basis')
-        print('You are running TDDFT-ris method')
+    # if args.add_p == True:
+    #     print('using one s and one p function per atom as the auxilibary basis')
+    #     print('You are running TDDFT-ris+p method')
+    # else:
+    #     print('using one s function per atom as the auxilibary basis')
+    #     print('You are running TDDFT-ris method')
     return args
 
 args = gen_args()
@@ -86,21 +92,43 @@ if __name__ == '__main__':
                                        basis=args.basis)
     
     if args.CSF_trunc == False:
-        print('using Davidson diagonalization')
-        td = TDDFT_ris.TDDFT_ris(mf=mf, 
-                        theta=args.theta,
-                        add_p=args.add_p, 
-                        a_x=args.a_x,
-                        omega=args.omega,
-                        alpha=args.alpha,
-                        beta=args.beta,
-                        conv_tol=args.conv_tol,
-                        nroots=args.nroots, 
-                        single=args.single,
-                        max_iter=args.max_iter,
-                        out_name=args.outname,
-                        spectra = args.spectra,
-                        print_threshold=args.print_thre)
+        
+        if args.add_p:
+            from pyscf_TDDFT_ris import TDDFT_ris as TDDFT_ris
+            print('use old code')
+            td = TDDFT_ris.TDDFT_ris(mf=mf, 
+                            theta=args.theta,
+                            add_p=args.add_p, 
+                            a_x=args.a_x,
+                            omega=args.omega,
+                            alpha=args.alpha,
+                            beta=args.beta,
+                            conv_tol=args.conv_tol,
+                            nroots=args.nroots, 
+                            single=args.single,
+                            max_iter=args.max_iter,
+                            out_name=args.outname,
+                            spectra = args.spectra,
+                            print_threshold=args.print_threshold)
+        else:
+            from pyscf_TDDFT_ris import TDDFT_ris_Ktrunc as TDDFT_ris
+            print('use new code')
+            td = TDDFT_ris.TDDFT_ris(mf=mf, 
+                            theta=args.theta,
+                            J_fit=args.J_fit, 
+                            K_fit=args.K_fit,
+                            a_x=args.a_x,
+                            omega=args.omega,
+                            alpha=args.alpha,
+                            beta=args.beta,
+                            Ktrunc=args.Ktrunc,
+                            conv_tol=args.conv_tol,
+                            nroots=args.nroots, 
+                            single=args.single,
+                            max_iter=args.max_iter,
+                            out_name=args.outname,
+                            spectra = args.spectra,
+                            print_threshold=args.print_threshold)           
     else:
         print('using CSF truncation')
         td = ris_pt2.TDDFT_ris_PT2(mf=mf, 
@@ -113,7 +141,7 @@ if __name__ == '__main__':
                         conv_tol=args.conv_tol,
                         nroots=args.nroots, 
                         out_name=args.outname,
-                        print_threshold=args.print_thre,
+                        print_threshold=args.print_threshold,
                         method=args.approximation,
                         spectra = args.spectra,
                         spectra_window=args.spectra_window,

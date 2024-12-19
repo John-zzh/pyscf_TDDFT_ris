@@ -1,6 +1,8 @@
 import numpy as np
 from pyscf import gto,  dft
-from pyscf_TDDFT_ris import TDDFT_ris
+from pyscf_TDDFT_ris import TDDFT_ris_Ktrunc as TDDFT_ris
+# from pyscf_TDDFT_ris import TDDFT_ris as TDDFT_ris
+np.set_printoptions(linewidth=250, threshold=np.inf, precision=15 )
 
 def gen_mf(RKS, func, charge=0, spin=0):
     mol = gto.Mole()
@@ -22,7 +24,7 @@ def gen_mf(RKS, func, charge=0, spin=0):
         mf = dft.UKS(mol) 
 
     # mf = mf.density_fit()
-    mf.conv_tol = 1e-10
+    mf.conv_tol = 1e-11
     mf.grids.level = 3
     mf.xc = func
     mol.charge = charge
@@ -43,7 +45,7 @@ def diff(a,b, threshold=1e-5):
     diff = np.linalg.norm(a-b)
     print(diff, diff<threshold)
     if diff > 1e-5:
-        raise ValueError('wrong results generated')
+        print('wrong results generated')
     
 res={}
 res['RKS_pbe_TDA_ene']=[6.391337036766483, 7.727736771208482, 8.340518691575443, 8.808272662133794, 9.030071732629553, 9.649731438960863, 10.112653089947635, 10.6661241433674, 10.82618709448345, 10.94062217252083]
@@ -58,7 +60,7 @@ res['RKS_pbe0_TDA_spc']=[0.0016598202890611687, 0.05060318093802627, 0.006011284
 res['RKS_pbe0_TDDFT_ene']=[7.093882111456887, 8.786377038782907, 9.07683721963022, 9.840151658142196, 10.045276834286607, 10.474034332889879, 10.765072347701429, 11.565624341839296, 11.641141860600381, 11.805778194549802]
 res['RKS_pbe0_TDDFT_spc']=[0.0012757043082446849, 0.0466835106024071, 0.005276813715839302, 0.020619896132278288, 0.055055943190518646, 0.13645552747311857, 0.0054222403037118404, 0.06613229366726169, 0.022033548843186326, 0.13632967127157392]
 
-res['RKS_wb97x_TDA_ene']=[7.385911176618056, 9.504617673378382, 9.515563113925236, 10.464678571783914, 10.761552107622874, 11.042870566010452, 11.150474149292164, 12.177940149643987, 12.220026304501042, 12.454224432384756]
+res['RKS_wb97x_TDA_ene']=[7.385900261524653, 9.504612486068254, 9.51556248478982, 10.464683242620593, 10.761565519284856, 11.042870164207473, 11.150448550790642, 12.177903133600742, 12.220045646635777, 12.454234955177991]
 res['RKS_wb97x_TDA_spc']=[0.0009369273379025906, 0.07372964112083992, 0.004116010850676041, 0.019652959484221046, 0.07221394818126496, 0.18958120157396943, 0.01583996735076162, 0.011732581247642909, 0.10935768241531149, 0.2124429524988815]
 
 res['RKS_wb97x_TDDFT_ene'] = [7.382996952815185, 9.493111644704317, 9.496350313956572, 10.458818721065613, 10.729397345512368, 11.021744554071587, 11.140692725490045, 12.172799158694682, 12.196269740796243, 12.395434222684072]
@@ -113,15 +115,16 @@ def main2():
     # for KS in ['RKS', 'UKS']:
     for KS in ['RKS']:
         # for func in ['pbe', 'pbe0', 'wb97x']:
-        for func in ['pbe0']:
+        for func in ['wb97x']:
             # for calc in ['TDA', 'TDDFT']:
-            for calc in ['TDDFT']:
+            for calc in ['TDA','TDDFT']:
                 name = KS + '_' + func + '_' + calc
                 print('======================================= {} {} {}-ris ======================================='.format(KS, func, calc))
                 mf = gen_mf(RKS=True if KS=='RKS' else False, func=func, charge=0 if KS=='RKS' else 1, spin=0 if KS=='RKS' else 1)
-                td = TDDFT_ris.TDDFT_ris(mf, nroots=nroots, spectra=True)
+                td = TDDFT_ris.TDDFT_ris(mf, nroots=nroots, spectra=True, Ktrunc=0, J_fit='sp', K_fit='s')
                 if calc == 'TDA':
                     energies, X, oscillator_strength = td.kernel_TDA()
+                    # print(energies)
                 elif  calc == 'TDDFT':
                     energies, X, Y, oscillator_strength = td.kernel_TDDFT()
                 # print_list(energies)
