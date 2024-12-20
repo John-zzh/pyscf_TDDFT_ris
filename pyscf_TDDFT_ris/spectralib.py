@@ -64,18 +64,24 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
 
 
     
-    entry = [eV, nm, cm_1, oscillator_strength]
-    data = np.zeros((eV.shape[0],len(entry)))
-    for i in range(len(entry)):
-        data[:,i] = entry[i]
-    print('================================================')
-    print('eV       nm       cm^-1    oscillator strength')
-    for row in range(data.shape[0]):
-        print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
+
     
 
 
     if spectra == True:
+
+        entry = [eV, nm, cm_1, oscillator_strength]
+        data = np.zeros((eV.shape[0],len(entry)))
+        for i in range(len(entry)):
+            data[:,i] = entry[i]
+        print('================================================')
+        print('eV       nm       cm^-1    oscillator strength')
+        for row in range(data.shape[0]):
+            print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
+
+
+
+
         filename = name + '_UV_spectra.txt'
         with open(filename, 'w') as f:
             np.savetxt(f, data, fmt='%.5f', header='eV     nm      cm^-1        oscillator_strength')
