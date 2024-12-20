@@ -1,7 +1,7 @@
 from pyscf_TDDFT_ris import parameter
 import numpy as np
 
-def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001):
+def get_spectra(energies, transition_vector, X_coeff, P, name, RKS, n_occ, n_vir, spectra=True, print_threshold=0.05):
     '''
     E = hν
     c = λ·ν
@@ -58,60 +58,44 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
     oscillator_strength = 2/3 * hartree * np.sum(trans_dipole_moment, axis=0)
 
     '''
-    eV, nm, oscillator_strength
+    eV, oscillator_strength, cm_1, nm
     '''
-
-
-
+    entry = [eV, nm, cm_1, oscillator_strength]
+    data = np.zeros((eV.shape[0],len(entry)))
     
 
+    for i in range(4):
+        data[:,i] = entry[i]
+    print('================================================')
+    print('eV       nm       cm^-1    oscillator strength')
+    for row in range(data.shape[0]):
+        print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
     
-
-
-    if spectra == True:
-
-        entry = [eV, nm, cm_1, oscillator_strength]
-        data = np.zeros((eV.shape[0],len(entry)))
-        for i in range(len(entry)):
-            data[:,i] = entry[i]
-        print('================================================')
-        print('eV       nm       cm^-1    oscillator strength')
-        for row in range(data.shape[0]):
-            print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
-
-
-
-
+    if spectra:
         filename = name + '_UV_spectra.txt'
         with open(filename, 'w') as f:
-            np.savetxt(f, data, fmt='%.5f', header='eV     nm      cm^-1        oscillator_strength')
+            np.savetxt(f, data, fmt='%.8f', header='eV       nm           cm^-1         oscillator strength')
         print('spectra data written to', filename)
 
-        print('print_threshold:', print_threshold)
-        def print_coeff(state, coeff_vec, sybmol, n_occ=n_occ, n_vir=n_vir):
-            for occ in range(n_occ):
-                for vir in range(n_vir):
-                    coeff = coeff_vec[occ,vir,state]
-                    if np.abs(coeff)>= print_threshold:
-                        print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
+    print('================================================')
+    
 
-        if RKS:
-            print(f"print RKS transition coefficients larger than {print_threshold:.2e}")
-            print('index of HOMO:', n_occ)
-            print('index of LUMO:', n_occ+1)
-            n_state = X.shape[1]
-            X = X.reshape(n_occ,n_vir,n_state)
-            if isinstance(Y, np.ndarray):
-                Y = Y.reshape(n_occ,n_vir,n_state)
-            for state in range(n_state):
-                print(f" Excited State  {state+1:4d}:      SingletXXXX   \
-                    {energies[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=XXXXX")
-                print_coeff(state, X, '->')
-                if isinstance(Y, np.ndarray):
-                    print_coeff(state, Y, '<-')
-        else:
-            print('UKS transition coefficient not implemenetd yet')
 
     return oscillator_strength
 
-
+def print_transition_coeff(X, Y):
+    if RKS:
+        print('print RKS transition coefficients larger than {:<8f}'.format(print_threshold))
+        print('index of HOMO:', n_occ)
+        print('index of LUMO:', n_occ+1)
+        n_state = X_coeff.shape[1]
+        X_coeff = X_coeff.reshape(n_occ,n_vir,n_state)
+        for state in range(n_state):
+            print('state {:d}:'.format(state+1))
+            for occ in range(n_occ):
+                for vir in range(n_vir):
+                    coeff = X_coeff[occ,vir,state]
+                    if np.abs(coeff)>= print_threshold:
+                        print('{:>15d}->{:<8d} {:<8.3f}'.format(occ+1, vir+1+n_occ, coeff))
+    else:
+        print('UKS transition coefficient not printed')
