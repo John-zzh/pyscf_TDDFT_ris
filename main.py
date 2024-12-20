@@ -24,10 +24,10 @@ def gen_args():
     parser.add_argument('-th',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
     parser.add_argument('-p',    '--add_p',       type=str2bool,  default=False,     help='add an extra p function to the auxilibary basis')
 
-    parser.add_argument('-J',    '--J_fit',       type=str,  default='s',   choices=['s', 'sp', 'spd'],  help='J fitting basis')
-    parser.add_argument('-K',    '--K_fit',       type=str,  default='s',   choices=['s', 'sp', 'spd'],  help='K fitting basis')
+    parser.add_argument('-J',    '--J_fit',       type=str,  default='sp',   choices=['s', 'sp', 'spd'],  help='J fitting basis')
+    parser.add_argument('-K',    '--K_fit',       type=str,  default='s',    choices=['s', 'sp', 'spd'],  help='K fitting basis')
 
-    parser.add_argument('-Ktrunc',    '--Ktrunc',       type=float,  default=0,     help='eV truncaion threshold for the MO in K')
+    parser.add_argument('-Ktrunc',    '--Ktrunc',       type=float,  default=40,     help='eV truncaion threshold for the MO in K')
 
     parser.add_argument('-tda',  '--TDA',         type=str2bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
     parser.add_argument('-n',    '--nroots',      type=int,   default=20,        help='the number of states you want to solve')
