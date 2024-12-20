@@ -133,28 +133,6 @@ def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
     
     print('Three center ERI shape', eri3c.shape)
 
-    # del eri3c
-    # print_memory_usage('after del eri3c')
-
-    # import h5py
-    # ftmp = lib.H5TmpFile()
-    # eri3c_tmp = ftmp.create_dataset('eri3c', shape=eri3c.shape, dtype='float32')
-    # eri3c_tmp[:] = eri3c
-    # with h5py.File('eri3c.h5', 'w') as h5file:
-    #     eri3c_dataset = h5file.create_dataset(
-    #         'eri3c',
-    #         shape=(nbf, nbf, nauxbf),
-    #         dtype='float32',
-    #         compression='gzip'
-    #     )
-
-    #     # 按辅助基函数的维度分块写入
-    #     block_size = 50
-    #     for aux_start in range(0, nauxbf, block_size):
-    #         aux_end = min(aux_start + block_size, nauxbf)
-    #         eri3c_dataset[:, :, aux_start:aux_end] = eri3c[:, :, aux_start:aux_end]
-    #         print(f"Written block {aux_start}:{aux_end}")
-
     return eri2c, eri3c
 
 def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, single=False):
@@ -213,32 +191,18 @@ def get_uvP_withL(eri3c, eri2c):
        -|-------------||-------------|
 '''
 
-# def get_Tia(uvP_withL: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
-#     '''    
-#     T means rank-3 Tensor
-#     T_pq^P = C_up Σ_Q (uv|Q)L_Q  C_vq 
-#     C_occ: C[:, :n_occ]
-#     C_vir: C[:, n_occ:]
-#     uvP_withL: Σ_P (uv|P)L_P
-#     '''
-#     tmp = einsum("va,uvP->uaP", C_vir, uvP_withL)
-#     T_ia = einsum("ui,uaP->iaP", C_occ, tmp)
-#     del uvP_withL, tmp
-#     print('T_ia.shape', T_ia.shape)
-#     return T_ia 
-
 def get_Tia(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
     '''    
     T means rank-3 Tensor
 
-    T_pq = Σ_uvQ C_up (uv|Q)L_Q  C_vq
+    T_pq = Σ_uvQ C_up (uv|Q)L_PQ  C_vq
 
     preT_pq^P =  Σ_uv C_up (uv|Q) C_vq 
 
     C_occ: C[:, :n_occ]
     C_vir: C[:, n_occ:]
 
-    lower_inv_eri2c (L_Q): (P|Q)^-1 = LL^T
+    lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T
 
     '''
 
@@ -249,23 +213,6 @@ def get_Tia(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C
     # del uvP_withL, tmp
     print('T_ia.shape', T_ia.shape)
     return T_ia 
-
-
-# def get_Tij_Tab(uvP_withL: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
-#     '''
-#     For common bybrid DFT, exchange and coulomb term use same set of T matrix
-#     For range-seperated bybrid DFT, (ij|ab) and (ib|ja) use different T matrix than (ia|jb), 
-#     because of the RSH eri2c and eri3c.
-#     T_ia_K is only for (ib|ja)
-#     '''
-
-#     T_ij = einsum("ui,vj,uvP->ijP", C_occ, C_occ, uvP_withL)
-#     T_ab = einsum("ua,vb,uvP->abP", C_vir, C_vir, uvP_withL)
-#     del uvP_withL
-#     print('T_ij.shape', T_ij.shape)
-#     print('T_ab.shape', T_ab.shape)
-#     return T_ij, T_ab
-
 
 def get_Tij_Tab(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
     '''
@@ -682,8 +629,6 @@ class TDDFT_ris(object):
         
         eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single)
         print_memory_usage('RIJ eri3c')
-        # uvP_withL_J = get_uvP_withL(eri2c=eri2c_J, eri3c=eri3c_J)
-        # print_memory_usage('RIJ uvP_withL_J')
 
         ''' RIK '''
         if K_fit == J_fit:
@@ -691,17 +636,10 @@ class TDDFT_ris(object):
             auxmol_K = auxmol_J
             eri2c_K, eri3c_K = eri2c_J, eri3c_J
 
-            # if omega == None or omega == 0:
-            #     ''' just normal hybrid, go ahead to build uvP_withL_K '''
-            #     uvP_withL_K = uvP_withL_J
-
         else:
             ''' K uese different basis as J'''
             auxmol_K = get_auxmol(mol=mol, theta=theta, fitting_basis=K_fit) 
             eri2c_K, eri3c_K = get_eri2c_eri3c(mol=mol, auxmol=auxmol_K, omega=0, single=single)
-            # if omega == None or omega == 0:
-            #     ''' just normal hybrid, go ahead to build uvP_withL_K '''
-            #     uvP_withL_K = get_uvP_withL(eri2c=eri2c_K, eri3c=eri3c_K)
 
         if omega and omega > 0:
             print(f'rebuild eri2c_K and eri3c_K with screening factor ω = {omega}')
@@ -714,8 +652,6 @@ class TDDFT_ris(object):
                                                 beta=beta, 
                                                 omega=omega, 
                                                 single=single)
-
-            # uvP_withL_K = get_uvP_withL(eri2c=eri2c_K, eri3c=eri3c_K)
 
         hdiag = delta_hdiag.reshape(-1)
         delta_hdiag_MVP = gen_delta_hdiag_MVP(delta_hdiag)
