@@ -137,7 +137,7 @@ def Davidson_Casida(matrix_vector_product,
     max_N_mv = (max_iter+1)*N_states
     
 
-    V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64)
+    V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64, order='F')
     W_holder = np.zeros_like(V_holder)
 
     U1_holder = np.zeros_like(V_holder)

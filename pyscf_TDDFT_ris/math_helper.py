@@ -110,6 +110,7 @@ def Gram_Schmidt_bvec(A, bvec):
 
 def VW_Gram_Schmidt(x, y, V, W):
     '''orthonormalize vector |x,y> against all vectors in |V,W>'''
+    
     m = np.dot(V.T,x) + np.dot(W.T,y)
 
     n = np.dot(W.T,x) + np.dot(V.T,y)
@@ -117,6 +118,16 @@ def VW_Gram_Schmidt(x, y, V, W):
     x = x - np.dot(V,m) - np.dot(W,n)
 
     y = y - np.dot(W,m) - np.dot(V,n)
+
+    # m = np.dot(x.T, V) + np.dot(y.T, W)
+
+    # n = np.dot(x.T, W) + np.dot(y.T, V)
+
+
+    # x = x - np.dot(m,V.T).T - np.dot(n,W.T).T
+
+    # y = y - np.dot(m, W.T).T - np.dot(n, V.T).T
+
     return x, y
 
 def block_symmetrize(A,m,n):
@@ -422,7 +433,8 @@ def VW_Gram_Schmidt_fill_holder(V_holder, W_holder, m, X_new, Y_new, double = Fa
     GSfill_end = time.time()
     GSfill_cost = GSfill_end - GSfill_start
 
-    # print('GScost = {:.2%}'.format(GScost/GSfill_cost))
+    print(f'GScost = {GScost:.2f} seconds {GScost/GSfill_cost:.2%}')
+
     # print('symmetrycost ={:.2%}'.format(symmetrycost/GSfill_cost))
     # print('normcost ={:.2%}'.format(normcost/GSfill_cost))
     new_m = m
