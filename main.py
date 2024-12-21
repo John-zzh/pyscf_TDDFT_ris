@@ -31,7 +31,7 @@ def gen_args():
 
     parser.add_argument('-tda',  '--TDA',         type=str2bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
     parser.add_argument('-n',    '--nroots',      type=int,   default=20,        help='the number of states you want to solve')
-    parser.add_argument('-t',    '--conv_tol',    type=float,  default=1e-5,      help='the convengence tolerance in the Davidson diagonalization')
+    parser.add_argument('-t',    '--conv_tol',    type=float,  default=1e-3,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
     parser.add_argument('-pt',   '--print_threshold',  type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
     
