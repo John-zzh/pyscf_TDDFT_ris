@@ -4,7 +4,8 @@ import numpy as np
 import multiprocessing as mp
 from pyscf_TDDFT_ris import parameter, eigen_solver, math_helper, spectralib
 import gc
-
+import psutil
+import time
 
 np.set_printoptions(linewidth=250, threshold=np.inf)
 
@@ -16,11 +17,8 @@ print("This job can use: " + str(num_cores) + "CPUs")
 
 
 def print_memory_usage(line):
-    import psutil
     process = psutil.Process()
-
     memory_usage = process.memory_info().rss  # rss: 常驻内存大小 (单位：字节)
-
     print(f"memory usage at {line}: {memory_usage / (1024 ** 2):.0f} MB")
 
 def get_auxmol(mol, theta=0.2, fitting_basis='s'):
@@ -80,7 +78,7 @@ def get_auxmol(mol, theta=0.2, fitting_basis='s'):
 
     auxmol.basis = aux_basis
     auxmol.build()
-
+    print('auxmol.cart =', mol.cart)
     # print('=====================')
     # [print(k, v) for k, v in auxmol._basis.items()]
     return auxmol
@@ -91,6 +89,7 @@ def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
     '''
     Total number of contracted GTOs for the mole and auxmol object
     '''
+    start = time.time()
     nbf = mol.nao_nr()
     nauxbf = auxmol.nao_nr()
 
@@ -104,7 +103,7 @@ def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
     '''
     (pq|rs) = Σ_PQ (pq|P)(P|Q)^-1(Q|rs)
     2 center 2 electron integral (P|Q)
-    N_auxbf * N_auxbf
+    nauxbf * nauxbf
     '''
 
     tag = '_cart' if mol.cart else '_sph'
@@ -113,22 +112,39 @@ def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
     # print(eri2c)
     '''
     3 center 2 electron integral (pq|P)
-    N_bf * N_bf * N_auxbf
+    nbf * nvf * nauxbf
     '''
     pmol = mol + auxmol
-    pmol.cart = mol.cart
-    print('auxmol.cart =', mol.cart)
-
     shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
+    pmol.cart = mol.cart
     eri3c = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
+
+
+    pmol = auxmol + mol
+    pmol.cart = mol.cart
+    
+
+    shls_slice = (0, auxmol.nbas, auxmol.nbas, auxmol.nbas + mol.nbas, auxmol.nbas, auxmol.nbas + mol.nbas)
+
+    eri3c_new = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
+    print('equral?', np.allclose(eri3c, eri3c_new.transpose(1,2,0)))
     # print('mol.shls_slice =', shls_slice)
-
+    print(f'time for generate eri2c and eri3c from libcint: {time.time()-start:.1f} seconds')
+    tt = time.time()
     if single:
-        eri2c = eri2c.astype(np.float32)
+        # print("eri2c.flags['C_CONTIGUOUS']", eri2c.flags)
+        eri2c = eri2c.astype(np.float32, order='C')
         gc.collect()
+        # print("eri2c_single.flags['C_CONTIGUOUS']", eri2c.flags)
 
-        eri3c = eri3c.astype(np.float32) 
+        
+        eri3c_single = np.empty((nauxbf, nbf, nbf), dtype=np.float32, order='C')
+        eri3c_single[:,:,:] = eri3c.astype(np.float32).transpose(2,1,0)[:,:,:]
+        
+        eri3c = eri3c_single 
+        print("eri3c.flags['C_CONTIGUOUS']", eri3c.flags['C_CONTIGUOUS'])
         gc.collect()
+        print(f'time for generate single precision eri2c and eri3c: {time.time()-tt:.1f} seconds')
     print(f"eri3c memory usage:{eri3c.nbytes / (1024 ** 2):.2f} MB")
     
     print('Three center ERI shape', eri3c.shape)
@@ -205,13 +221,61 @@ def get_Tia(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C
     lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T
 
     '''
+    t_satrt = time.time()
+    # tmp = einsum("ui,uvP->ivP", C_occ, eri3c)
+    # pre_T_ia = einsum("va,ivP->iaP", C_vir, tmp)
+    # T_ia = einsum("iaP,PQ->iaQ", pre_T_ia, lower_inv_eri2c)
+    tt = time.time()
+    '''eri3c in shape (nbf, nbf, nauxbf)'''
+    nbf = eri3c.shape[0]
+    nauxbf = eri3c.shape[2]
 
-    tmp = einsum("ui,uvP->ivP", C_occ, eri3c)
-    pre_T_ia = einsum("va,ivP->iaP", C_vir, tmp)
+    n_occ = C_occ.shape[1]
+    n_vir = C_vir.shape[1]
 
-    T_ia = einsum("iaP,PQ->iaQ", pre_T_ia, lower_inv_eri2c)
-    # del uvP_withL, tmp
+    ''' C_occ.T (n_occ, nbf)
+        eri3c_2d (nbf, nbf*nauxbf)
+        ->
+        tmp (n_occ, nbf*nauxbf)'''
+    # eri3c = eri3c.reshape(nbf, nbf*nauxbf)
+    # tmp = np.dot(C_occ.T, eri3c)
+    '''eri3c (nauxbf, nbf, nbf)
+       C_occ (nbf, n_occ)
+       -> (nauxbf, nbf, n_occ)'''
+    # eri3c = eri3c.transpose(2,1,0)
+    tmp = np.dot(eri3c, C_occ)
+    print(f'T_ia  np.dot(eri3c, C_occ) time {time.time() - tt:.1f} seconds')
+    tt = time.time()
+
+    '''(nauxbf, nbf, n_occ) - > (nauxbf, n_occ, nbf) '''
+    tmp = tmp.transpose(0,2,1)
+    tmp = tmp.reshape(nauxbf*n_occ, nbf)
+
+    
+    ''' 
+        tmp    (nauxbf*n_occ, nbf)
+        C_vir  (nbf, n_vir)
+        ->
+        pre_T_ia (nauxbf*n_occ, n_vir)'''
+
+    pre_T_ia = np.dot(tmp, C_vir)
+    
+    print(f'T_ia  np.dot(tmp, C_vir)time {time.time() - tt:.1f} seconds')
+    tt = time.time()
+    # pre_T_ia.reshape(n_vir, n_occ, nauxbf)
+
+    pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ, n_vir)
+    pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ*n_vir)
+
+    # T_ia = np.dot(pre_T_ia, lower_inv_eri2c)
+    T_ia = np.dot(lower_inv_eri2c.T, pre_T_ia)
+    T_ia = T_ia.reshape(nauxbf, n_occ, n_vir)
+    T_ia = T_ia.transpose(1,2,0)
+    
+    print(f'T_ia  np.dot(lower_inv_eri2c.T, pre_T_ia) time {time.time() - tt:.1f} seconds') 
+    tt = time.time()
     print('T_ia.shape', T_ia.shape)
+    print(f'T_ia total time {time.time() - t_satrt:.1f} seconds')
     return T_ia 
 
 def get_Tij_Tab(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
@@ -221,7 +285,7 @@ def get_Tij_Tab(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarra
     because of the RSH eri2c and eri3c.
     T_ia_K is only for (ib|ja)
     '''
-
+    t_satrt = time.time()
     tmp = einsum("ui,uvP->ivP", C_occ, eri3c)
     pre_T_ij = einsum("vj,ivP->ijP", C_occ, tmp)
     T_ij = einsum("ijP,PQ->ijQ", pre_T_ij, lower_inv_eri2c)
@@ -233,6 +297,7 @@ def get_Tij_Tab(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarra
 
     print('T_ij.shape', T_ij.shape)
     print('T_ab.shape', T_ab.shape)
+    print(f'T_ijab time {time.time() - t_satrt:.1f} seconds')
     return T_ij, T_ab
 
 def gen_hdiag_MVP(mo_energy, n_occ, n_vir, sqrt=False):
@@ -559,7 +624,7 @@ class TDDFT_ris(object):
 
             uvP_withL_K = get_uvP_withL(eri2c=eri2c_K, eri3c=eri3c_K)
 
-
+        assert False
         hdiag = delta_hdiag.reshape(-1)
         delta_hdiag_MVP = gen_delta_hdiag_MVP(delta_hdiag)
         '''hybrid RKS TDA'''
@@ -625,11 +690,15 @@ class TDDFT_ris(object):
 
 
         ''' RIJ '''
+        print('='*20 + "RIJ")
         auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
         
         eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single)
-        print_memory_usage('RIJ eri3c')
+        print_memory_usage('after RIJ eri3c generated')
+        lower_inv_eri2c_J = np.linalg.cholesky(np.linalg.inv(eri2c_J))
+        T_ia_J = get_Tia(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_occ=C_occ_notrunc, C_vir=C_vir_notrunc)
 
+        print('='*20 + "RIK")
         ''' RIK '''
         if K_fit == J_fit:
             ''' K uese exactly same basis as J and they share same set of Tensors'''
@@ -653,20 +722,14 @@ class TDDFT_ris(object):
                                                 omega=omega, 
                                                 single=single)
 
-        hdiag = delta_hdiag.reshape(-1)
-        delta_hdiag_MVP = gen_delta_hdiag_MVP(delta_hdiag)
-        
-        
-        # T_ia_J = get_Tia(uvP_withL=uvP_withL_J, C_occ=C_occ_notrunc, C_vir=C_vir_notrunc)
-        lower_inv_eri2c_J = np.linalg.cholesky(np.linalg.inv(eri2c_J))
-        T_ia_J = get_Tia(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_occ=C_occ_notrunc, C_vir=C_vir_notrunc)
-
-        # T_ia_K = get_Tia(uvP_withL=uvP_withL_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
         lower_inv_eri2c_K = np.linalg.cholesky(np.linalg.inv(eri2c_K))
         T_ia_K = get_Tia(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
 
         T_ij_K, T_ab_K = get_Tij_Tab(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
 
+
+        hdiag = delta_hdiag.reshape(-1)
+        delta_hdiag_MVP = gen_delta_hdiag_MVP(delta_hdiag)
 
         iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
         ijab_MVP = gen_ijab_MVP(T_ij=T_ij_K,   T_ab=T_ab_K)
