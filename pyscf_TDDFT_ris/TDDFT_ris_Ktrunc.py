@@ -87,69 +87,68 @@ def get_auxmol(mol, theta=0.2, fitting_basis='s'):
 def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
 
     '''
-    Total number of contracted GTOs for the mole and auxmol object
+    (uv|kl) = Σ_PQ (uv|P)(P|Q)^-1(Q|kl)
+    2 center 2 electron AO integral (P|Q)
+    nauxbf * nauxbf
+
+    3 center 2 electron integral (uv|P)
+    (nbf, nbf, nauxbf)
+
+    actually it returns (P|uv) ( or (Q|kl), they are the same, just transposed)
+    (nauxbf, nbf, nbf)
+
     '''
+
     start = time.time()
     nbf = mol.nao_nr()
     nauxbf = auxmol.nao_nr()
 
-    predict_mem = nbf * nbf * nauxbf * 4 / (1024 ** 2)
-    print(f"Predicted memory usage for 3c2e: {predict_mem:.2f} MB")
+    predict_mem = nbf * nbf * nauxbf * 8 / (1024 ** 2)
+    print(f"    Predicted memory usage for float64 3c2e: {predict_mem:.2f} MB")
 
     if omega != 0:
         mol.set_range_coulomb(omega)
         auxmol.set_range_coulomb(omega)
 
-    '''
-    (pq|rs) = Σ_PQ (pq|P)(P|Q)^-1(Q|rs)
-    2 center 2 electron integral (P|Q)
-    nauxbf * nauxbf
-    '''
-
     tag = '_cart' if mol.cart else '_sph'
 
     eri2c = auxmol.intor('int2c2e' + tag)
-    # print(eri2c)
-    '''
-    3 center 2 electron integral (pq|P)
-    nbf * nvf * nauxbf
-    '''
+
     pmol = mol + auxmol
+    pmol.cart = mol.cart
+
     shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
-    pmol.cart = mol.cart
+    
     eri3c = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
-
-
-    pmol = auxmol + mol
-    pmol.cart = mol.cart
-    
-
-    shls_slice = (0, auxmol.nbas, auxmol.nbas, auxmol.nbas + mol.nbas, auxmol.nbas, auxmol.nbas + mol.nbas)
-
-    eri3c_new = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
-    print('equral?', np.allclose(eri3c, eri3c_new.transpose(1,2,0)))
-    # print('mol.shls_slice =', shls_slice)
-    print(f'time for generate eri2c and eri3c from libcint: {time.time()-start:.1f} seconds')
+    print('    eri3c.shape', eri3c.shape)
+    print(f'    time for generate eri2c and eri3c from libcint: {time.time()-start:.1f} seconds')
     tt = time.time()
-    if single:
-        # print("eri2c.flags['C_CONTIGUOUS']", eri2c.flags)
-        eri2c = eri2c.astype(np.float32, order='C')
-        gc.collect()
-        # print("eri2c_single.flags['C_CONTIGUOUS']", eri2c.flags)
-
-        
-        eri3c_single = np.empty((nauxbf, nbf, nbf), dtype=np.float32, order='C')
-        eri3c_single[:,:,:] = eri3c.astype(np.float32).transpose(2,1,0)[:,:,:]
-        
-        eri3c = eri3c_single 
-        print("eri3c.flags['C_CONTIGUOUS']", eri3c.flags['C_CONTIGUOUS'])
-        gc.collect()
-        print(f'time for generate single precision eri2c and eri3c: {time.time()-tt:.1f} seconds')
-    print(f"eri3c memory usage:{eri3c.nbytes / (1024 ** 2):.2f} MB")
     
-    print('Three center ERI shape', eri3c.shape)
+    if not single:
+        return eri2c, eri3c.transpose(2,1,0)
+    elif single:
+        eri2c_single = np.empty((nauxbf, nauxbf), dtype=np.float32, order='C')
+        eri2c_single[:,:] = eri2c.astype(np.float32)[:,:]
+        print("     eri2c_single.flags['C_CONTIGUOUS']", eri2c_single.flags['C_CONTIGUOUS'])
+        del eri2c
+        
 
-    return eri2c, eri3c
+        ''' eri3c was in shape (nbf, nbf, nauxbf),'''
+        # eri3c_single = np.empty((nauxbf, nbf, nbf), dtype=np.float32, order='C')
+        # eri3c_single[:,:,:] = eri3c.astype(np.float32).transpose(2,1,0)[:,:,:]
+        # print('symmetry?', np.allclose(eri3c_single, eri3c_single.transpose(0,2,1)))
+ 
+        # eri3c_single = eri3c.astype(np.float32, order='C').transpose(2,1,0)  # this is very slow
+        eri3c_single = eri3c.transpose(2, 1, 0).astype(np.float32, order='C')
+
+        print("    eri3c_single.flags['C_CONTIGUOUS']", eri3c_single.flags['C_CONTIGUOUS'])
+        del eri3c
+        print(f'    time for generate single precision eri2c and eri3c: {time.time()-tt:.1f} seconds')
+        print(f"    eri3c_single memory usage:{eri3c_single.nbytes / (1024 ** 2):.2f} MB")
+        return eri2c_single, eri3c_single
+    
+   
+
 
 def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, single=False):
 
@@ -161,7 +160,7 @@ def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, singl
     -- The second part is long range 
         (ij|alpha + beta*erf(omega)/r|ab) = alpha (ij|r|ab) + beta*(ij|erf(omega)/r|ab)
     '''            
-    print('2c2e and 3c2e for RSH RI-K (ij|ab)')
+    print('     generating 2c2e_RSH and 3c2e_RSH for RI-K (ij|ab) ...')
     eri2c_erf, eri3c_erf = get_eri2c_eri3c(mol=mol, auxmol=auxmol, omega=omega, single=single)
     eri2c_RSH = alpha * eri2c_K + beta * eri2c_erf
     gc.collect() 
@@ -178,7 +177,7 @@ def get_uvP_withL(eri3c, eri2c):
     # print('eri3c.shape', eri3c.shape)
     Lower = np.linalg.cholesky(np.linalg.inv(eri2c))
     print_memory_usage('Lower')
-    print(f"Lower memory usage:{Lower.nbytes / (1024 ** 2):.2f} MB")
+    # print(f"Lower memory usage:{Lower.nbytes / (1024 ** 2):.2f} MB")
     print('eri3c.dtype', eri3c.dtype)
     # uvP_withL = einsum("uvQ,QP->uvP", eri3c, Lower)
     nbf, nbf, nauxbf = eri3c.shape
@@ -207,98 +206,213 @@ def get_uvP_withL(eri3c, eri2c):
        -|-------------||-------------|
 '''
 
-def get_Tia(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
-    '''    
-    T means rank-3 Tensor
 
-    T_pq = Σ_uvQ C_up (uv|Q)L_PQ  C_vq
+def get_Tpq(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_p: np.ndarray, C_q: np.ndarray):
+    '''    
+    T_pq means rank-3 Tensor (pq|P)
+
+    T_pq = Σ_uvQ C_u^p (uv|Q)L_PQ  C_v^q
 
     preT_pq^P =  Σ_uv C_up (uv|Q) C_vq 
 
-    C_occ: C[:, :n_occ]
-    C_vir: C[:, n_occ:]
+    C_p and C_q:  C[:, :n_occ] or C[:, n_occ:], can be both
 
     lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T
 
+    The following code is doing this:
+    eri3c_Cp = einsum("Puv, up -> Ppv", C_p, eri3c)
+    pre_T_pq = einsum("Ppv,vq->Ppq", eri3c_Cp, C_q)
+    T_pq = einsum("PQ,Ppq->Qpq", lower_inv_eri2c, pre_T_pq)
+
+    T_pq finally reshape to pq P shape
+
+    it has many manually reshape and transpose 
+    beause respecting c-contiguous is beneficial for memory access, much faster
+
     '''
     t_satrt = time.time()
-    # tmp = einsum("ui,uvP->ivP", C_occ, eri3c)
-    # pre_T_ia = einsum("va,ivP->iaP", C_vir, tmp)
-    # T_ia = einsum("iaP,PQ->iaQ", pre_T_ia, lower_inv_eri2c)
+
     tt = time.time()
-    '''eri3c in shape (nbf, nbf, nauxbf)'''
-    nbf = eri3c.shape[0]
-    nauxbf = eri3c.shape[2]
+    '''eri3c in shape (nauxbf, nbf, nbf)'''
+    nbf = eri3c.shape[1]
+    nauxbf = eri3c.shape[0]
 
-    n_occ = C_occ.shape[1]
-    n_vir = C_vir.shape[1]
+    n_p = C_p.shape[1]
+    n_q = C_q.shape[1]
 
-    ''' C_occ.T (n_occ, nbf)
-        eri3c_2d (nbf, nbf*nauxbf)
-        ->
-        tmp (n_occ, nbf*nauxbf)'''
-    # eri3c = eri3c.reshape(nbf, nbf*nauxbf)
-    # tmp = np.dot(C_occ.T, eri3c)
-    '''eri3c (nauxbf, nbf, nbf)
-       C_occ (nbf, n_occ)
-       -> (nauxbf, nbf, n_occ)'''
-    # eri3c = eri3c.transpose(2,1,0)
-    tmp = np.dot(eri3c, C_occ)
-    print(f'T_ia  np.dot(eri3c, C_occ) time {time.time() - tt:.1f} seconds')
+
+    '''eri3c (nauxbf, nbf, nbf) -> (nauxbf*nbf, nbf)
+       C_p (nbf, n_p)
+       >> eri3c_C_p (nauxbf*nbf, n_p)'''
+    eri3c = eri3c.reshape(nauxbf*nbf, nbf)
+    eri3c_C_p = np.dot(eri3c, C_p)
+    # print(f'T_pq  np.dot(eri3c, C_p) time {time.time() - tt:.1f} seconds')
     tt = time.time()
 
-    '''(nauxbf, nbf, n_occ) - > (nauxbf, n_occ, nbf) '''
-    tmp = tmp.transpose(0,2,1)
-    tmp = tmp.reshape(nauxbf*n_occ, nbf)
+    ''' eri3c_C_p (nauxbf*nbf, n_p) 
+        -> (nauxbf, nbf, n_p) 
+        -> (nauxbf, n_p, nbf) '''
+    eri3c_C_p = eri3c_C_p.reshape(nauxbf, nbf, n_p)
+    eri3c_C_p = eri3c_C_p.transpose(0,2,1)
 
+    ''' eri3c_C_p  (nauxbf, n_p, nbf) -> (nauxbf*n_p, nbf)
+        C_q  (nbf, n_q)
+        >> pre_T_pq (nauxbf*n_p, n_q)'''
+    eri3c_C_p = eri3c_C_p.reshape(nauxbf*n_p, nbf)
+    pre_T_pq = np.dot(eri3c_C_p, C_q)
     
-    ''' 
-        tmp    (nauxbf*n_occ, nbf)
-        C_vir  (nbf, n_vir)
-        ->
-        pre_T_ia (nauxbf*n_occ, n_vir)'''
-
-    pre_T_ia = np.dot(tmp, C_vir)
-    
-    print(f'T_ia  np.dot(tmp, C_vir)time {time.time() - tt:.1f} seconds')
+    # print(f'T_pq  np.dot(tmp, C_q)time {time.time() - tt:.1f} seconds')
     tt = time.time()
-    # pre_T_ia.reshape(n_vir, n_occ, nauxbf)
 
-    pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ, n_vir)
-    pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ*n_vir)
+    ''' pre_T_pq  (nauxbf*n_occ, n_q) ->  (nauxbf, n_p, n_q) -> (nauxbf, n_p*n_q)
+        lower_inv_eri2c  (nauxbf, nauxbf)
+        >> T_pq (nauxbf, n_p*n_q) -> (nauxbf, n_p, n_q)'''
 
-    # T_ia = np.dot(pre_T_ia, lower_inv_eri2c)
-    T_ia = np.dot(lower_inv_eri2c.T, pre_T_ia)
-    T_ia = T_ia.reshape(nauxbf, n_occ, n_vir)
-    T_ia = T_ia.transpose(1,2,0)
+    pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
+    pre_T_pq = pre_T_pq.reshape(nauxbf, n_p*n_q)
+
+    T_pq = np.dot(lower_inv_eri2c.T, pre_T_pq)
+    T_pq = T_pq.reshape(nauxbf, n_p, n_q)
     
-    print(f'T_ia  np.dot(lower_inv_eri2c.T, pre_T_ia) time {time.time() - tt:.1f} seconds') 
+    T_pq = T_pq.transpose(1,2,0)
+    # print(f'T_pq  np.dot(lower_inv_eri2c.T, pre_T_pq) time {time.time() - tt:.1f} seconds') 
     tt = time.time()
-    print('T_ia.shape', T_ia.shape)
-    print(f'T_ia total time {time.time() - t_satrt:.1f} seconds')
-    return T_ia 
-
-def get_Tij_Tab(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
-    '''
-    For common bybrid DFT, exchange and coulomb term use same set of T matrix
-    For range-seperated bybrid DFT, (ij|ab) and (ib|ja) use different T matrix than (ia|jb), 
-    because of the RSH eri2c and eri3c.
-    T_ia_K is only for (ib|ja)
-    '''
-    t_satrt = time.time()
-    tmp = einsum("ui,uvP->ivP", C_occ, eri3c)
-    pre_T_ij = einsum("vj,ivP->ijP", C_occ, tmp)
-    T_ij = einsum("ijP,PQ->ijQ", pre_T_ij, lower_inv_eri2c)
-
-    tmp = einsum("ua,uvP->avP", C_vir, eri3c)
-    pre_T_ab = einsum("vb,avP->abP", C_vir, tmp)
-    T_ab = einsum("abP,PQ->abQ", pre_T_ab, lower_inv_eri2c)
+    print('T_pq.shape', T_pq.shape)
+    print(f'T_pq total time {time.time() - t_satrt:.1f} seconds')
+    return T_pq 
 
 
-    print('T_ij.shape', T_ij.shape)
-    print('T_ab.shape', T_ab.shape)
-    print(f'T_ijab time {time.time() - t_satrt:.1f} seconds')
-    return T_ij, T_ab
+
+# def get_Tia(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
+#     '''    
+#     T means rank-3 Tensor
+
+#     T_pq = Σ_uvQ C_up (uv|Q)L_PQ  C_vq
+
+#     preT_pq^P =  Σ_uv C_up (uv|Q) C_vq 
+
+#     C_occ: C[:, :n_occ]
+#     C_vir: C[:, n_occ:]
+
+#     lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T
+
+#     The following code is doing this:
+#     tmp = einsum("ui,uvP->ivP", C_occ, eri3c)
+#     pre_T_ia = einsum("va,ivP->iaP", C_vir, tmp)
+#     T_ia = einsum("iaP,PQ->iaQ", pre_T_ia, lower_inv_eri2c)
+
+#     it has many manually reshape and transpose 
+#     beause respecting c-contiguous is beneficial for memory access, much faster
+
+#     '''
+#     return get_Tpq(eri3c, lower_inv_eri2c, C_occ, C_vir)
+#     # t_satrt = time.time()
+
+#     # tt = time.time()
+#     # '''eri3c in shape (nauxbf, nbf, nbf)'''
+#     # nbf = eri3c.shape[1]
+#     # nauxbf = eri3c.shape[0]
+
+#     # n_occ = C_occ.shape[1]
+#     # n_vir = C_vir.shape[1]
+
+
+#     # '''eri3c (nauxbf, nbf, nbf) -> (nauxbf*nbf, nbf)
+#     #    C_occ (nbf, n_occ)
+#     #    >> eri3c_C_occ (nauxbf*nbf, n_occ)'''
+#     # eri3c = eri3c.reshape(nauxbf*nbf, nbf)
+#     # eri3c_C_occ = np.dot(eri3c, C_occ)
+#     # # print(f'T_ia  np.dot(eri3c, C_occ) time {time.time() - tt:.1f} seconds')
+#     # tt = time.time()
+
+#     # ''' eri3c_C_occ (nauxbf*nbf, n_occ) 
+#     #     -> (nauxbf, nbf, n_occ) 
+#     #     -> (nauxbf, n_occ, nbf) '''
+#     # eri3c_C_occ = eri3c_C_occ.reshape(nauxbf, nbf, n_occ)
+#     # eri3c_C_occ = eri3c_C_occ.transpose(0,2,1)
+
+#     # ''' eri3c_C_occ  (nauxbf, n_occ, nbf) -> (nauxbf*n_occ, nbf)
+#     #     C_vir  (nbf, n_vir)
+#     #     >> pre_T_ia (nauxbf*n_occ, n_vir)'''
+#     # eri3c_C_occ = eri3c_C_occ.reshape(nauxbf*n_occ, nbf)
+#     # pre_T_ia = np.dot(eri3c_C_occ, C_vir)
+    
+#     # # print(f'T_ia  np.dot(tmp, C_vir)time {time.time() - tt:.1f} seconds')
+#     # tt = time.time()
+
+#     # ''' pre_T_ia  (nauxbf*n_occ, n_vir) ->  (nauxbf, n_occ, n_vir) -> (nauxbf, n_occ*n_vir)
+#     #     lower_inv_eri2c  (nauxbf, nauxbf)
+#     #     >> T_ia (nauxbf, n_occ*n_vir) -> (nauxbf, n_occ, n_vir)'''
+
+#     # pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ, n_vir)
+#     # pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ*n_vir)
+
+#     # T_ia = np.dot(lower_inv_eri2c.T, pre_T_ia)
+#     # T_ia = T_ia.reshape(nauxbf, n_occ, n_vir)
+    
+#     # T_ia = T_ia.transpose(1,2,0)
+#     # # print(f'T_ia  np.dot(lower_inv_eri2c.T, pre_T_ia) time {time.time() - tt:.1f} seconds') 
+#     # tt = time.time()
+#     # print('T_ia.shape', T_ia.shape)
+#     # print(f'T_ia total time {time.time() - t_satrt:.1f} seconds')
+#     # return T_ia 
+
+# def get_Tij_Tab(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
+#     '''
+#     For common bybrid DFT, exchange and coulomb term use same set of T matrix
+#     For range-seperated bybrid DFT, (ij|ab) and (ib|ja) use different T matrix than (ia|jb), 
+#     because of the RSH eri2c and eri3c.
+#     T_ia_K is only for (ib|ja)
+#     '''
+#     t_satrt = time.time()
+#     tt = time.time()
+#     '''
+#     The follosing code is do this:
+
+#     tmp = einsum("ui,uvP->ivP", C_occ, eri3c)
+#     pre_T_ij = einsum("vj,ivP->ijP", C_occ, tmp)
+#     T_ij = einsum("ijP,PQ->ijQ", pre_T_ij, lower_inv_eri2c)
+
+#     tmp = einsum("ua,uvP->avP", C_vir, eri3c)
+#     pre_T_ab = einsum("vb,avP->abP", C_vir, tmp)
+#     T_ab = einsum("abP,PQ->abQ", pre_T_ab, lower_inv_eri2c)
+#     '''
+#     '''eri3c (nauxbf*nbf, nbf)
+#        C_occ (nbf, n_occ)
+#        -> (nauxbf*nbf, n_occ)'''
+#     # eri3c = eri3c.reshape(nauxbf*nbf, nbf)
+#     # eri3c_C_occ = np.dot(eri3c, C_occ)
+#     # # print(f'T_ia  np.dot(eri3c, C_occ) time {time.time() - tt:.1f} seconds')
+#     # tt = time.time()
+
+
+#     # '''eri3c_C_occ  (nauxbf*nbf, n_occ) 
+#     #     -> (nauxbf, n_occ, nbf) '''
+#     # eri3c_C_occ = eri3c_C_occ.reshape(nauxbf, nbf, n_occ)
+#     # eri3c_C_occ = eri3c_C_occ.transpose(0,2,1)
+
+#     # ''' eri3c_C_occ  (nauxbf*n_occ, nbf)
+#     #     C_vir  (nbf, n_vir)
+#     #     ->
+#     #     pre_T_ia (nauxbf*n_occ, n_occ)'''
+#     # eri3c_C_occ = eri3c_C_occ.reshape(nauxbf*n_occ, nbf)
+#     # pre_T_ii = np.dot(eri3c_C_occ, C_occ)
+
+#     # ''' pre_T_ia   (nauxbf, n_occ*nbf)
+#     #     -> T_ia (nauxbf*n_occ, n_vir)'''
+
+#     # pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ, n_vir)
+#     # pre_T_ia = pre_T_ia.reshape(nauxbf, n_occ*n_vir)
+
+#     # T_ia = np.dot(lower_inv_eri2c.T, pre_T_ia)
+#     # T_ia = T_ia.reshape(nauxbf, n_occ, n_vir)
+#     T_ij = get_Tia(eri3c, lower_inv_eri2c, C_occ, C_occ)
+#     T_ab = get_Tia(eri3c, lower_inv_eri2c, C_vir, C_vir)
+
+#     print('T_ij.shape', T_ij.shape)
+#     print('T_ab.shape', T_ab.shape)
+#     print(f'T_ijab time {time.time() - t_satrt:.1f} seconds')
+#     return T_ij, T_ab
 
 def gen_hdiag_MVP(mo_energy, n_occ, n_vir, sqrt=False):
 
@@ -696,15 +810,14 @@ class TDDFT_ris(object):
         eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single)
         print_memory_usage('after RIJ eri3c generated')
         lower_inv_eri2c_J = np.linalg.cholesky(np.linalg.inv(eri2c_J))
-        T_ia_J = get_Tia(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_occ=C_occ_notrunc, C_vir=C_vir_notrunc)
-
+        # T_ia_J = get_Tia(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_occ=C_occ_notrunc, C_vir=C_vir_notrunc)
+        T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
         print('='*20 + "RIK")
         ''' RIK '''
         if K_fit == J_fit:
             ''' K uese exactly same basis as J and they share same set of Tensors'''
             auxmol_K = auxmol_J
             eri2c_K, eri3c_K = eri2c_J, eri3c_J
-
         else:
             ''' K uese different basis as J'''
             auxmol_K = get_auxmol(mol=mol, theta=theta, fitting_basis=K_fit) 
@@ -723,10 +836,14 @@ class TDDFT_ris(object):
                                                 single=single)
 
         lower_inv_eri2c_K = np.linalg.cholesky(np.linalg.inv(eri2c_K))
-        T_ia_K = get_Tia(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
+        # T_ia_K = get_Tia(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
 
-        T_ij_K, T_ab_K = get_Tij_Tab(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
+        # T_ij_K, T_ab_K = get_Tij_Tab(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
+        T_ia_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_vir_Ktrunc)
+        T_ij_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_occ_Ktrunc)
+        T_ab_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_vir_Ktrunc, C_q=C_vir_Ktrunc)
 
+        print_memory_usage('after RIK eri3c generated')
 
         hdiag = delta_hdiag.reshape(-1)
         delta_hdiag_MVP = gen_delta_hdiag_MVP(delta_hdiag)
