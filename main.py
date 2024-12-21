@@ -1,4 +1,4 @@
-from pyscf_TDDFT_ris import readMO, math_helper, ris_pt2
+from pyscf_TDDFT_ris import readMO
 
 import argparse, os
 import time
@@ -13,7 +13,7 @@ def str2bool(str):
 def gen_args():
     parser = argparse.ArgumentParser(description='Davidson')
     parser.add_argument('-f',    '--filename',    type=str,   default=None,      help='.fch filename (molecule.fch)')
-    parser.add_argument('-fout', '--outname',     type=str,   default=None,      help='output file name')
+    parser.add_argument('-fout', '--spectraoutname', type=str,   default=None,      help='output file name')
     parser.add_argument('-func', '--functional',  type=str,   default=None,      help='functional name (pbe0)')
     parser.add_argument('-b',    '--basis',       type=str,   default=None,      help='basis set name (def2-SVP)')
     parser.add_argument('-ax',   '--a_x',         type=float, default=None,      help='HF component in the hybrid functional')
@@ -24,26 +24,27 @@ def gen_args():
     parser.add_argument('-th',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
     parser.add_argument('-p',    '--add_p',       type=str2bool,  default=False,     help='add an extra p function to the auxilibary basis')
 
-    parser.add_argument('-J',    '--J_fit',       type=str,  default='sp',   choices=['s', 'sp', 'spd'],  help='J fitting basis')
-    parser.add_argument('-K',    '--K_fit',       type=str,  default='s',    choices=['s', 'sp', 'spd'],  help='K fitting basis')
+    parser.add_argument('-J_fit',   '--J_fit',       type=str,  default='sp',   choices=['s', 'sp', 'spd'],  help='J fitting basis')
+    parser.add_argument('-K_fit',   '--K_fit',       type=str,  default='s',    choices=['s', 'sp', 'spd'],  help='K fitting basis')
+    parser.add_argument('-m',      '--max_mem_mb',   type=int,  default=8000,     help='maximum memory in MB')
 
-    parser.add_argument('-Ktrunc',    '--Ktrunc',       type=float,  default=40,     help='eV truncaion threshold for the MO in K')
+    parser.add_argument('-Ktrunc', '--Ktrunc',       type=float,  default=40,     help='eV truncaion threshold for the MO in K')
 
-    parser.add_argument('-tda',  '--TDA',         type=str2bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
-    parser.add_argument('-n',    '--nroots',      type=int,   default=20,        help='the number of states you want to solve')
-    parser.add_argument('-t',    '--conv_tol',    type=float,  default=1e-3,      help='the convengence tolerance in the Davidson diagonalization')
-    parser.add_argument('-i',    '--max_iter',    type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
-    parser.add_argument('-pt',   '--print_threshold',  type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
+    parser.add_argument('-TDA',  '--TDA',               type=str2bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
+    parser.add_argument('-n',    '--nroots',            type=int,   default=10,        help='the number of states you want to solve')
+    parser.add_argument('-t',    '--conv_tol',          type=float,  default=1e-3,      help='the convengence tolerance in the Davidson diagonalization')
+    parser.add_argument('-i',    '--max_iter',          type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
+    parser.add_argument('-pt',   '--print_threshold',   type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
     
     
-    parser.add_argument('-CSF', '--CSF_trunc',  type=str2bool,   default=False,    help='truncate the CSF basis to speedup the calculation')
-    parser.add_argument('-spectra', '--spectra',  type=str2bool,   default=True,    help='print out the spectra file')
-    parser.add_argument('-specw', '--spectra_window',  type=float,   default=10.0,    help='the window of the spectra up to, in eV')
-    parser.add_argument('-pt2_tol', '--pt2_tol',  type=float,   default=1e-4, help='the threshold of S-CSF PT2 evaluation')
-    parser.add_argument('-N', '--N_cpus',           type=int,   default=10, help='the number of CPUs to use')
-    parser.add_argument('-single', '--single',           type=str2bool,   default='True', help='use single precision')
-    parser.add_argument('-approx', '--approximation',           type=str,   default='ris', help='ris sTDA')
-    parser.add_argument('-truncMO', '--truncMO',           type=str2bool,   default=False, help='trunc MO at early stage')
+    parser.add_argument('-CSF', '--CSF_trunc',          type=str2bool,   default=False,    help='truncate the CSF basis to speedup the calculation')
+    parser.add_argument('-spectra', '--spectra',        type=str2bool,   default=True,    help='print out the spectra file')
+    parser.add_argument('-specw', '--spectra_window',   type=float,   default=10.0,    help='the window of the spectra up to, in eV')
+    parser.add_argument('-pt2_tol', '--pt2_tol',        type=float,   default=1e-4, help='the threshold of S-CSF PT2 evaluation')
+    parser.add_argument('-N', '--N_cpus',               type=int,   default=10, help='the number of CPUs to use')
+    parser.add_argument('-single', '--single',          type=str2bool,   default='True', help='use single precision')
+    parser.add_argument('-approx', '--approximation',   type=str,   default='ris', help='ris sTDA')
+    parser.add_argument('-truncMO', '--truncMO',        type=str2bool,   default=False, help='trunc MO at early stage')
     
     args = parser.parse_args()
 
@@ -51,10 +52,10 @@ def gen_args():
         raise ValueError('I need the .fch filename, such as -f molecule.fch')
     if args.functional == None and args.a_x == None and args.omega == None:
         raise ValueError('I need the functional name, such as -func pbe0; or functional parameters: a_x, omega, alpha, beta, such as -ax 0.25; -w 0.5 -al 0.5 -be 1.0')
-    if args.outname == None:
-        args.outname = args.filename + '-'
+    if args.spectraoutname == None:
+        args.spectraoutname = args.filename + '-'
     else:
-        args.outname = args.outname + '-'
+        args.spectraoutname = args.spectraoutname + '-'
 
     # if args.add_p == True:
     #     print('using one s and one p function per atom as the auxilibary basis')
@@ -107,7 +108,7 @@ if __name__ == '__main__':
                             nroots=args.nroots, 
                             single=args.single,
                             max_iter=args.max_iter,
-                            out_name=args.outname,
+                            out_name=args.spectraoutname,
                             spectra = args.spectra,
                             print_threshold=args.print_threshold)
         else:
@@ -122,15 +123,17 @@ if __name__ == '__main__':
                             alpha=args.alpha,
                             beta=args.beta,
                             Ktrunc=args.Ktrunc,
+                            max_mem_mb=args.max_mem_mb,
                             conv_tol=args.conv_tol,
                             nroots=args.nroots, 
                             single=args.single,
                             max_iter=args.max_iter,
-                            out_name=args.outname,
+                            out_name=args.spectraoutname,
                             spectra = args.spectra,
                             print_threshold=args.print_threshold)           
     else:
         print('using CSF truncation')
+        from pyscf_TDDFT_ris import ris_pt2
         td = ris_pt2.TDDFT_ris_PT2(mf=mf, 
                         theta=args.theta,
                         add_p=args.add_p, 
@@ -140,7 +143,7 @@ if __name__ == '__main__':
                         beta=args.beta,
                         conv_tol=args.conv_tol,
                         nroots=args.nroots, 
-                        out_name=args.outname,
+                        out_name=args.spectraoutname,
                         print_threshold=args.print_threshold,
                         method=args.approximation,
                         spectra = args.spectra,
@@ -150,8 +153,6 @@ if __name__ == '__main__':
                         pt2_tol=args.pt2_tol,
                         single=args.single,
                         truncMO=args.truncMO)
-
-    # math_helper.show_memory_info('after TDDFT_ris object is created')
 
     start = time.time()
     if args.TDA == True:

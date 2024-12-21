@@ -78,13 +78,51 @@ def get_auxmol(mol, theta=0.2, fitting_basis='s'):
 
     auxmol.basis = aux_basis
     auxmol.build()
-    print('auxmol.cart =', mol.cart)
+    print('   auxmol.cart =', mol.cart)
     # print('=====================')
     # [print(k, v) for k, v in auxmol._basis.items()]
     return auxmol
 
 
-def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
+def calculate_batches_by_basis_count(mol, max_nbf_per_batch):
+    """
+    根据基函数数目划分 batch，并映射回最接近的 shell 数目。
+    
+    参数:
+        mol: PySCF 的 Mole 对象。
+        max_nbf_per_batch: 每个 batch 的最大基函数数目。
+    
+    返回:
+        一个列表，其中每个元素是 (start_shell, end_shell) 的元组，表示每个 batch 的 shell 范围。
+    """
+    ao_loc = mol.ao_loc  # Shell 到基函数的映射
+    nbas = mol.nbas      # Shell 数量
+    
+    batches = []
+    current_batch_start = 0
+    current_nbf = 0  # 当前 batch 的累计基函数数目
+    
+    for i in range(nbas):
+        # 当前 shell 的基函数数目
+        nbf_in_shell = ao_loc[i+1] - ao_loc[i]
+        if current_nbf + nbf_in_shell > max_nbf_per_batch:
+            # 如果当前 batch 超出基函数限制，结束当前 batch
+            batches.append((current_batch_start, i))
+            current_batch_start = i
+            current_nbf = 0
+        
+        # 累计当前 shell 的基函数数目
+        current_nbf += nbf_in_shell
+    
+    # 处理最后一个 batch
+    if current_batch_start < nbas:
+        batches.append((current_batch_start, nbas))
+    
+    return batches
+
+
+
+def get_eri2c_eri3c(mol, auxmol, max_mem_mb=2000, omega=0, single=True):
 
     '''
     (uv|kl) = Σ_PQ (uv|P)(P|Q)^-1(Q|kl)
@@ -102,9 +140,8 @@ def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
     start = time.time()
     nbf = mol.nao_nr()
     nauxbf = auxmol.nao_nr()
+    dtype = np.float32 if single else np.float64
 
-    predict_mem = nbf * nbf * nauxbf * 8 / (1024 ** 2)
-    print(f"    Predicted memory usage for float64 3c2e: {predict_mem:.2f} MB")
 
     if omega != 0:
         mol.set_range_coulomb(omega)
@@ -112,44 +149,54 @@ def get_eri2c_eri3c(mol, auxmol, omega=0, single=True):
 
     tag = '_cart' if mol.cart else '_sph'
 
+    ''' eri2c is samll enough, just do it incore''' 
     eri2c = auxmol.intor('int2c2e' + tag)
+    eri2c = eri2c.astype(dtype=dtype, order='C')
 
     pmol = mol + auxmol
     pmol.cart = mol.cart
 
-    shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
-    
-    eri3c = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
-    print('    eri3c.shape', eri3c.shape)
-    print(f'    time for generate eri2c and eri3c from libcint: {time.time()-start:.1f} seconds')
-    tt = time.time()
-    
-    if not single:
-        return eri2c, eri3c.transpose(2,1,0)
-    elif single:
-        eri2c_single = np.empty((nauxbf, nauxbf), dtype=np.float32, order='C')
-        eri2c_single[:,:] = eri2c.astype(np.float32)[:,:]
-        print("     eri2c_single.flags['C_CONTIGUOUS']", eri2c_single.flags['C_CONTIGUOUS'])
-        del eri2c
-        
+    '''for eri3c, if it is too large, then we need to compute in batches and return a generator '''
+    full_eri3c_mem = nbf * nbf * nauxbf * 8 / (1024 ** 2)
+    print(f'    predict_eri3c mem {full_eri3c_mem:.0f} MB')
 
-        ''' eri3c was in shape (nbf, nbf, nauxbf),'''
-        # eri3c_single = np.empty((nauxbf, nbf, nbf), dtype=np.float32, order='C')
-        # eri3c_single[:,:,:] = eri3c.astype(np.float32).transpose(2,1,0)[:,:,:]
-        # print('symmetry?', np.allclose(eri3c_single, eri3c_single.transpose(0,2,1)))
- 
-        # eri3c_single = eri3c.astype(np.float32, order='C').transpose(2,1,0)  # this is very slow
-        eri3c_single = eri3c.transpose(2, 1, 0).astype(np.float32, order='C')
+    max_mem_for_one_batch = max_mem_mb / 4
+    # print('    auxmol.nbas, stride', auxmol.nbas, stride)
+    if max_mem_for_one_batch >= full_eri3c_mem:
+        print('    small 3c2e, just incore')
+        shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
+        eri3c = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
+        eri3c = eri3c.transpose(2, 1, 0).astype(dtype=dtype, order='C')
+        print('    full eri3c.shape', eri3c.shape)
+        return eri2c, eri3c
+    else:
+        max_nbf_per_batch = int(max_mem_for_one_batch / (nbf * nbf * 8 / (1024 ** 2)))
+        print('    max_nbf_per_batch', max_nbf_per_batch)
+        batches = calculate_batches_by_basis_count(auxmol, max_nbf_per_batch)
 
-        print("    eri3c_single.flags['C_CONTIGUOUS']", eri3c_single.flags['C_CONTIGUOUS'])
-        del eri3c
-        print(f'    time for generate single precision eri2c and eri3c: {time.time()-tt:.1f} seconds')
-        print(f"    eri3c_single memory usage:{eri3c_single.nbytes / (1024 ** 2):.2f} MB")
-        return eri2c_single, eri3c_single
-    
+
+        print('    large 3c2e, batch generator')
+        def eri3c_batch_generator():
+            # for start_aux in range(0, auxmol.nbas, stride):
+            #     end_aux = min(start_aux + stride, auxmol.nbas)
+            for start_shell, end_shell in batches:
+                shls_slice = (
+                    0, mol.nbas,            # First dimension (mol)
+                    0, mol.nbas,            # Second dimension (mol)
+                    mol.nbas + start_shell,   # Start of aux basis
+                    mol.nbas + end_shell      # End of aux basis (exclusive)
+                )
+
+                eri3c_slice = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
+                # print('    eri3c_slice.shape', eri3c_slice.shape)
+                # print(f'    eri3c_slice mem: {eri3c_slice.nbytes / (1024 ** 2):.0f} MB')
+
+                eri3c_slice = eri3c_slice.transpose(2, 1, 0).astype(dtype=dtype, order='C')
+
+                yield eri3c_slice
+        return eri2c, eri3c_batch_generator
+
    
-
-
 def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, single=False):
 
     '''
@@ -159,37 +206,38 @@ def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, singl
         treated by the DFT XC functional, thus not considered here
     -- The second part is long range 
         (ij|alpha + beta*erf(omega)/r|ab) = alpha (ij|r|ab) + beta*(ij|erf(omega)/r|ab)
+
+
+        eri2c_K, eri3c_K are omega = 0, just like usual eri2c, eri3c
     '''            
     print('     generating 2c2e_RSH and 3c2e_RSH for RI-K (ij|ab) ...')
     eri2c_erf, eri3c_erf = get_eri2c_eri3c(mol=mol, auxmol=auxmol, omega=omega, single=single)
     eri2c_RSH = alpha * eri2c_K + beta * eri2c_erf
-    gc.collect() 
+    # print('type(eri3c_K)', type(eri3c_K))
+    # print('type(eri3c_erf)', type(eri3c_erf))
+    # print('callable(eri3c_K) and callable(eri3c_erf)', callable(eri3c_K),  callable(eri3c_erf))
 
-    eri3c_RSH = alpha * eri3c_K + beta * eri3c_erf
-    gc.collect()    
-    return eri2c_RSH, eri3c_RSH
+    if isinstance(eri3c_K, np.ndarray) and isinstance(eri3c_erf, np.ndarray):
+        eri3c_RSH = alpha * eri3c_K + beta * eri3c_erf
+        return eri2c_RSH, eri3c_RSH
 
-def get_uvP_withL(eri3c, eri2c):
-    '''
-    (P|Q)^-1 = LL^T
-    uvP_withL = Σ_P (uv|P)L_P
-    '''
-    # print('eri3c.shape', eri3c.shape)
-    Lower = np.linalg.cholesky(np.linalg.inv(eri2c))
-    print_memory_usage('Lower')
-    # print(f"Lower memory usage:{Lower.nbytes / (1024 ** 2):.2f} MB")
-    print('eri3c.dtype', eri3c.dtype)
-    # uvP_withL = einsum("uvQ,QP->uvP", eri3c, Lower)
-    nbf, nbf, nauxbf = eri3c.shape
+    elif callable(eri3c_K) and callable(eri3c_erf): 
+        def eri3c_RSH_generator():
+            eri3c_K_gen = eri3c_K()
+            eri3c_erf_gen = eri3c_erf()
+            while True:
+                try:
+                    eri3c_K_batch = next(eri3c_K_gen)
+                    eri3c_erf_batch = next(eri3c_erf_gen)
+                    eri3c_RSH_batch = alpha * eri3c_K_batch + beta * eri3c_erf_batch
+                    yield eri3c_RSH_batch
+                except StopIteration:
+                    break
+        return eri2c_RSH, eri3c_RSH_generator
+    else:
+        raise ValueError('eri3c_K and eri3c_erf must be both np.ndarray or callable')
 
-    eri3c = eri3c.reshape(nbf*nbf, nauxbf)
-    uvP_withL = np.dot(eri3c, Lower.T)
-    del eri3c
-    uvP_withL = uvP_withL.reshape(nbf, nbf, Lower.shape[1])
-
-    print_memory_usage('uvP_withL')
-    print(f"uvP_withL memory usage:{uvP_withL.nbytes / (1024 ** 2):.2f} MB")
-    return uvP_withL
+    
 
 '''
             n_occ          n_vir
@@ -207,21 +255,96 @@ def get_uvP_withL(eri3c, eri2c):
 '''
 
 
-def get_Tpq(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_p: np.ndarray, C_q: np.ndarray):
+# def get_Tpq_one_batch(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_p: np.ndarray, C_q: np.ndarray):
+#     '''    
+#     T_pq means rank-3 Tensor (pq|P)
+
+#     T_pq = Σ_uvQ C_u^p (uv|Q)L_PQ  C_v^q
+
+#     preT_pq^P =  Σ_uv C_up (uv|Q) C_vq 
+
+#     C_p and C_q:  C[:, :n_occ] or C[:, n_occ:], can be both
+
+#     lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T
+
+#     The following code is doing this:
+#     eri3c_Cp = einsum("Puv, up -> Ppv", C_p, eri3c)
+#     pre_T_pq = einsum("Ppv,vq->Ppq", eri3c_Cp, C_q)
+#     T_pq = einsum("PQ,Ppq->Qpq", lower_inv_eri2c, pre_T_pq)
+
+#     T_pq finally reshape to pq P shape
+
+#     it has many manually reshape and transpose 
+#     beause respecting c-contiguous is beneficial for memory access, much faster
+
+#     '''
+#     t_satrt = time.time()
+
+#     tt = time.time()
+#     '''eri3c in shape (nauxbf, nbf, nbf)'''
+#     nbf = eri3c.shape[1]
+#     nauxbf = eri3c.shape[0]
+
+#     n_p = C_p.shape[1]
+#     n_q = C_q.shape[1]
+
+
+#     '''eri3c (nauxbf, nbf, nbf) -> (nauxbf*nbf, nbf)
+#        C_p (nbf, n_p)
+#        >> eri3c_C_p (nauxbf*nbf, n_p)'''
+#     eri3c = eri3c.reshape(nauxbf*nbf, nbf)
+#     eri3c_C_p = np.dot(eri3c, C_p)
+#     # print(f'T_pq  np.dot(eri3c, C_p) time {time.time() - tt:.1f} seconds')
+#     tt = time.time()
+
+#     ''' eri3c_C_p (nauxbf*nbf, n_p) 
+#         -> (nauxbf, nbf, n_p) 
+#         -> (nauxbf, n_p, nbf) '''
+#     eri3c_C_p = eri3c_C_p.reshape(nauxbf, nbf, n_p)
+#     eri3c_C_p = eri3c_C_p.transpose(0,2,1)
+
+#     ''' eri3c_C_p  (nauxbf, n_p, nbf) -> (nauxbf*n_p, nbf)
+#         C_q  (nbf, n_q)
+#         >> pre_T_pq (nauxbf*n_p, n_q)'''
+#     eri3c_C_p = eri3c_C_p.reshape(nauxbf*n_p, nbf)
+#     pre_T_pq = np.dot(eri3c_C_p, C_q)
+    
+#     # print(f'T_pq  np.dot(tmp, C_q)time {time.time() - tt:.1f} seconds')
+#     tt = time.time()
+
+#     ''' pre_T_pq  (nauxbf*n_occ, n_q) ->  (nauxbf, n_p, n_q) -> (nauxbf, n_p*n_q)
+#         lower_inv_eri2c  (nauxbf, nauxbf)
+#         >> T_pq (nauxbf, n_p*n_q) -> (nauxbf, n_p, n_q)'''
+
+#     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
+#     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p*n_q)
+
+#     T_pq = np.dot(lower_inv_eri2c.T, pre_T_pq)
+#     T_pq = T_pq.reshape(nauxbf, n_p, n_q)
+    
+#     T_pq = T_pq.transpose(1,2,0)
+#     # print(f'T_pq  np.dot(lower_inv_eri2c.T, pre_T_pq) time {time.time() - tt:.1f} seconds') 
+#     tt = time.time()
+#     print('T_pq.shape', T_pq.shape)
+#     print(f'T_pq one batch time {time.time() - t_satrt:.1f} seconds')
+#     return T_pq 
+
+def get_pre_Tpq_one_batch(eri3c: np.ndarray, C_p: np.ndarray, C_q: np.ndarray):
     '''    
     T_pq means rank-3 Tensor (pq|P)
 
     T_pq = Σ_uvQ C_u^p (uv|Q)L_PQ  C_v^q
 
-    preT_pq^P =  Σ_uv C_up (uv|Q) C_vq 
+    preT_pq^P =  Σ_uv C_up (uv|Q) C_vq, thus is the return 
 
     C_p and C_q:  C[:, :n_occ] or C[:, n_occ:], can be both
 
-    lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T
+    lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T, not contract in this function
 
     The following code is doing this:
     eri3c_Cp = einsum("Puv, up -> Ppv", C_p, eri3c)
     pre_T_pq = einsum("Ppv,vq->Ppq", eri3c_Cp, C_q)
+
     T_pq = einsum("PQ,Ppq->Qpq", lower_inv_eri2c, pre_T_pq)
 
     T_pq finally reshape to pq P shape
@@ -232,7 +355,7 @@ def get_Tpq(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_p: np.ndarray, C_q
     '''
     t_satrt = time.time()
 
-    tt = time.time()
+    # tt = time.time()
     '''eri3c in shape (nauxbf, nbf, nbf)'''
     nbf = eri3c.shape[1]
     nauxbf = eri3c.shape[0]
@@ -247,7 +370,7 @@ def get_Tpq(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_p: np.ndarray, C_q
     eri3c = eri3c.reshape(nauxbf*nbf, nbf)
     eri3c_C_p = np.dot(eri3c, C_p)
     # print(f'T_pq  np.dot(eri3c, C_p) time {time.time() - tt:.1f} seconds')
-    tt = time.time()
+    # tt = time.time()
 
     ''' eri3c_C_p (nauxbf*nbf, n_p) 
         -> (nauxbf, nbf, n_p) 
@@ -257,30 +380,68 @@ def get_Tpq(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_p: np.ndarray, C_q
 
     ''' eri3c_C_p  (nauxbf, n_p, nbf) -> (nauxbf*n_p, nbf)
         C_q  (nbf, n_q)
-        >> pre_T_pq (nauxbf*n_p, n_q)'''
+        >> pre_T_pq (nauxbf*n_p, n_q) >  (nauxbf, n_p, n_q)  '''
     eri3c_C_p = eri3c_C_p.reshape(nauxbf*n_p, nbf)
     pre_T_pq = np.dot(eri3c_C_p, C_q)
-    
+    pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
     # print(f'T_pq  np.dot(tmp, C_q)time {time.time() - tt:.1f} seconds')
-    tt = time.time()
+    # tt = time.time()
+    # print(f'    pre_T_pq time: {time.time() - t_satrt:.1f} seconds')
+    return pre_T_pq
 
-    ''' pre_T_pq  (nauxbf*n_occ, n_q) ->  (nauxbf, n_p, n_q) -> (nauxbf, n_p*n_q)
+def get_pre_T_pq_to_Tpq(pre_T_pq: np.ndarray, lower_inv_eri2c: np.ndarray):
+    ''' pre_T_pq  (nauxbf, n_p, n_q) -> (nauxbf, n_p*n_q)
         lower_inv_eri2c  (nauxbf, nauxbf)
         >> T_pq (nauxbf, n_p*n_q) -> (nauxbf, n_p, n_q)'''
+    tt = time.time()
+    nauxbf, n_p, n_q = pre_T_pq.shape
 
-    pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p*n_q)
 
     T_pq = np.dot(lower_inv_eri2c.T, pre_T_pq)
     T_pq = T_pq.reshape(nauxbf, n_p, n_q)
     
+
+    ''' -> (n_q, n_p, nauxbf)'''
     T_pq = T_pq.transpose(1,2,0)
     # print(f'T_pq  np.dot(lower_inv_eri2c.T, pre_T_pq) time {time.time() - tt:.1f} seconds') 
-    tt = time.time()
-    print('T_pq.shape', T_pq.shape)
-    print(f'T_pq total time {time.time() - t_satrt:.1f} seconds')
+    
+    # print('T_pq.shape', T_pq.shape)
+    # print(f'T_pq one batch time {time.time() - tt:.1f} seconds')
     return T_pq 
 
+def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
+    """
+    Wrapper function to handle eri3c as either a matrix or a callable.
+    """
+    # 判断 eri3c 的类型
+    # print('type(eri3c)', type(eri3c))
+    if isinstance(eri3c, np.ndarray):
+        pre_T_pq = get_pre_Tpq_one_batch(eri3c, C_p, C_q)
+
+
+    elif callable(eri3c):
+        # 分批次计算 T_pq
+        nauxbf = lower_inv_eri2c.shape[0]
+        n_p = C_p.shape[1]
+        n_q = C_q.shape[1]
+
+        pre_T_pq = np.zeros((nauxbf, n_p, n_q), dtype=C_p.dtype) 
+        aux_offset = 0  # Offset to track where to store results in T_pq
+        
+        for eri3c_batch in eri3c():
+            # Process each batch of eri3c
+            batch_size = eri3c_batch.shape[0]
+            pre_T_pq[aux_offset:aux_offset + batch_size, :, :] = get_pre_Tpq_one_batch(
+                eri3c_batch, C_p, C_q
+            )
+            aux_offset += batch_size  # Update the offset for the next batch
+
+    else:
+        raise ValueError("eri3c must be either a numpy.ndarray or a callable returning a generator.")
+
+    T_pq = get_pre_T_pq_to_Tpq(pre_T_pq, lower_inv_eri2c)
+    return T_pq
 
 
 # def get_Tia(eri3c: np.ndarray, lower_inv_eri2c: np.ndarray, C_occ: np.ndarray, C_vir: np.ndarray):
@@ -516,7 +677,8 @@ class TDDFT_ris(object):
                 pyscf_TDDFT_vind: callable = None,
                 out_name: str = '',
                 print_threshold: float = 0.05,
-                single: bool = False):
+                single: bool = False,
+                max_mem_mb: int = 8000,):
 
         self.mf = mf
         self.theta = theta
@@ -542,6 +704,7 @@ class TDDFT_ris(object):
         self.out_name = out_name
         self.print_threshold = print_threshold
         self.single = single
+        self.max_mem_mb = max_mem_mb
         print('self.nroots', self.nroots)
         print('use single precision?', self.single)
 
@@ -697,7 +860,7 @@ class TDDFT_ris(object):
         ''' RIJ '''
         auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
 
-        eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single)
+        eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
         uvP_withL_J = get_uvP_withL(eri2c=eri2c_J, eri3c=eri3c_J)
 
 
@@ -711,7 +874,7 @@ class TDDFT_ris(object):
                 uvP_withL_K = uvP_withL_J
         else:
             auxmol_K = get_auxmol(mol=mol, theta=theta, fitting_basis=K_fit) 
-            eri2c_K, eri3c_K = get_eri2c_eri3c(mol=mol, auxmol=auxmol_K, omega=0)
+            eri2c_K, eri3c_K = get_eri2c_eri3c(mol=mol, auxmol=auxmol_K, omega=0, single=single, max_mem_mb=max_mem_mb)
             if omega == None or omega == 0:
                 ''' just normal hybrid, go ahead to build uvP_withL_K '''
                 uvP_withL_K = get_uvP_withL(eri2c=eri2c_K, eri3c=eri3c_K)
@@ -804,15 +967,19 @@ class TDDFT_ris(object):
 
 
         ''' RIJ '''
-        print('='*20 + "RIJ")
+        tt = time.time()
+        print('='*20 + "RIJ"+ '='*20)
         auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
         
         eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single)
         print_memory_usage('after RIJ eri3c generated')
         lower_inv_eri2c_J = np.linalg.cholesky(np.linalg.inv(eri2c_J))
-        # T_ia_J = get_Tia(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_occ=C_occ_notrunc, C_vir=C_vir_notrunc)
+
         T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
-        print('='*20 + "RIK")
+        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
+        tt = time.time()
+
+        print('='*20 + "RIK" + '='*20)
         ''' RIK '''
         if K_fit == J_fit:
             ''' K uese exactly same basis as J and they share same set of Tensors'''
@@ -844,6 +1011,7 @@ class TDDFT_ris(object):
         T_ab_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_vir_Ktrunc, C_q=C_vir_Ktrunc)
 
         print_memory_usage('after RIK eri3c generated')
+        print(f'T_ia_K T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
 
         hdiag = delta_hdiag.reshape(-1)
         delta_hdiag_MVP = gen_delta_hdiag_MVP(delta_hdiag)
