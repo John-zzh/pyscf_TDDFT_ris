@@ -26,7 +26,7 @@ def gen_args():
 
     parser.add_argument('-J_fit',   '--J_fit',       type=str,  default='sp',   choices=['s', 'sp', 'spd'],  help='J fitting basis')
     parser.add_argument('-K_fit',   '--K_fit',       type=str,  default='s',    choices=['s', 'sp', 'spd'],  help='K fitting basis')
-    parser.add_argument('-m',      '--max_mem_mb',   type=int,  default=8000,     help='maximum memory in MB')
+    parser.add_argument('-M',      '--max_mem_mb',   type=int,  default=8000,     help='maximum memory in MB')
 
     parser.add_argument('-Ktrunc', '--Ktrunc',       type=float,  default=40,     help='eV truncaion threshold for the MO in K')
 

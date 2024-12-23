@@ -1,6 +1,22 @@
 from pyscf_TDDFT_ris import parameter
 import numpy as np
 
+def print_coeff(state, coeff_vec, sybmol, n_occ, n_vir, print_threshold):
+    # 筛选出符合条件的元素（向量化操作）
+    abs_coeff = np.abs(coeff_vec[state, :, :])  # 只取指定状态的矩阵
+    mask = abs_coeff >= print_threshold         # 筛选条件，返回布尔矩阵
+
+    # 获取符合条件的行（occ）和列（vir）的索引
+    occ_indices, vir_indices = np.where(mask)
+
+    # 获取对应的系数值
+    coeff_values = coeff_vec[state, occ_indices, vir_indices]
+
+    # 打印结果
+    for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values):
+        print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
+
+
 def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001):
     '''
     E = hν
@@ -37,17 +53,21 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
     for TDDFT, f = 2/3 E 2*|<P|X+Y>|**2     
     P is transition dipole 
     transition_vector is eigenvector of A matrix
+
+    energies in Hartree
     '''
     energies = energies.reshape(-1,)
     # transition_vector = transition_vector/np.linalg.norm(transition_vector, axis=0)
-    eV = energies.copy()
+    eV = energies.copy() * parameter.Hartree_to_eV
     # print(energies, energies.shape)
     cm_1 = eV*8065.544
     nm = 1240.7011/eV
 
-    hartree = energies/parameter.Hartree_to_eV
+    # hartree = energies/parameter.Hartree_to_eV
+    # print('P.shape:', P.shape)
+    # print('transition_vector.shape:', transition_vector.shape)
 
-    trans_dipole_moment = np.dot(P.T, transition_vector)**2
+    trans_dipole_moment = np.dot(transition_vector, P.T)**2
 
     if RKS:
         trans_dipole_moment *= 2
@@ -55,17 +75,11 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
     '''
     2* because alpha and beta spin
     '''
-    oscillator_strength = 2/3 * hartree * np.sum(trans_dipole_moment, axis=0)
+    oscillator_strength = 2/3 * energies * np.sum(trans_dipole_moment, axis=1)
 
     '''
     eV, nm, oscillator_strength
     '''
-
-
-
-    
-
-    
 
 
     if spectra == True:
@@ -77,9 +91,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         print('================================================')
         print('eV       nm       cm^-1    oscillator strength')
         for row in range(data.shape[0]):
-            print('{:<8.3f} {:<8.0f} {:<8.0f} {:<8.8f}'.format(data[row,0], data[row,1], data[row,2], data[row,3]))
-
-
+            print(f'{data[row,0]:<8.3f} {data[row,1]:<8.0f} {data[row,2]:<8.0f} {data[row,3]:<8.8f}')
 
 
         filename = name + '_UV_spectra.txt'
@@ -88,27 +100,23 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         print('spectra data written to', filename)
 
         print('print_threshold:', print_threshold)
-        def print_coeff(state, coeff_vec, sybmol, n_occ=n_occ, n_vir=n_vir):
-            for occ in range(n_occ):
-                for vir in range(n_vir):
-                    coeff = coeff_vec[occ,vir,state]
-                    if np.abs(coeff)>= print_threshold:
-                        print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
+
+
 
         if RKS:
             print(f"print RKS transition coefficients larger than {print_threshold:.2e}")
             print('index of HOMO:', n_occ)
             print('index of LUMO:', n_occ+1)
-            n_state = X.shape[1]
-            X = X.reshape(n_occ,n_vir,n_state)
+            n_state = X.shape[0]
+            X = X.reshape(n_state, n_occ, n_vir)
             if isinstance(Y, np.ndarray):
-                Y = Y.reshape(n_occ,n_vir,n_state)
+                Y = Y.reshape(n_state, n_occ, n_vir)
             for state in range(n_state):
                 print(f" Excited State  {state+1:4d}:      SingletXXXX   \
-                    {energies[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=XXXXX")
-                print_coeff(state, X, '->')
+                    {eV[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=XXXXX")
+                print_coeff(state, X, '->', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
                 if isinstance(Y, np.ndarray):
-                    print_coeff(state, Y, '<-')
+                    print_coeff(state, Y, '<-', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
         else:
             print('UKS transition coefficient not implemenetd yet')
 
