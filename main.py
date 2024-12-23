@@ -18,10 +18,10 @@ def gen_args():
     parser.add_argument('-b',    '--basis',       type=str,   default=None,      help='basis set name (def2-SVP)')
     parser.add_argument('-ax',   '--a_x',         type=float, default=None,      help='HF component in the hybrid functional')
     parser.add_argument('-w',    '--omega',       type=float, default=None,      help='screening factor in the range-separated functional')
-    parser.add_argument('-al',   '--alpha',       type=float, default=None,      help='alpha in the range-separated functional')
-    parser.add_argument('-be',   '--beta',        type=float, default=None,      help='beta in the range-separated functional')
+    parser.add_argument('-alpha',   '--alpha',       type=float, default=None,      help='alpha in the range-separated functional')
+    parser.add_argument('-beta',   '--beta',        type=float, default=None,      help='beta in the range-separated functional')
     
-    parser.add_argument('-th',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
+    parser.add_argument('-theta',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
     parser.add_argument('-p',    '--add_p',       type=str2bool,  default=False,     help='add an extra p function to the auxilibary basis')
 
     parser.add_argument('-J_fit',   '--J_fit',       type=str,  default='sp',   choices=['s', 'sp', 'spd'],  help='J fitting basis')

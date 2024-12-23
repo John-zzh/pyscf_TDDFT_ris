@@ -1,9 +1,10 @@
 
 import numpy as np
 from pyscf_TDDFT_ris import math_helper
-from pyscf_TDDFT_ris import math_helper_old
-import time
 from pyscf_TDDFT_ris import parameter
+from scipy.sparse import csr_matrix
+import time
+
 
 def Davidson(matrix_vector_product,
                     hdiag,
@@ -122,7 +123,7 @@ def Davidson_Casida(matrix_vector_product,
                         N_states=20,
                         conv_tol=1e-5,
                         max_iter=25,
-                        GS = False,
+                        GS=False,
                         single=False ):
     '''
     [ A B ] X - [1   0] Y Ω = 0
@@ -131,7 +132,7 @@ def Davidson_Casida(matrix_vector_product,
     '''
     print('======= TDDFT Eigen Solver Statrs =======')
 
-    TD_start = time.time()
+    davidson_start = time.time()
     A_size = hdiag.shape[0]
     print('size of A matrix =', A_size)
     size_old = 0
@@ -149,8 +150,6 @@ def Davidson_Casida(matrix_vector_product,
     a = [V.T W.T][A B][V] = [V.T W.T][U1] = VU1 + WU2
                  [B A][W]            [U2]
     '''
-
-    # V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64, order='F')
     V_holder = np.zeros((max_N_mv, A_size),dtype=np.float32 if single else np.float64)
     W_holder = np.zeros_like(V_holder)
 
@@ -242,20 +241,11 @@ def Davidson_Casida(matrix_vector_product,
         U1 = U1_holder[:size_new, :]
         U2 = U2_holder[:size_new, :]
 
-        X_full = np.dot(x.T, V)
-        X_full += np.dot(y.T, W)
+        X_full = x.T @ V + y.T @ W
+        Y_full = x.T @ W + y.T @ V
 
-        Y_full = np.dot(x.T, W)
-        Y_full += np.dot(y.T, V)
-
-        R_x = np.dot(x.T, U1)
-        R_x += np.dot(y.T, U2)
-        R_x -= omega.reshape(-1,1) * X_full
-
-        R_y = np.dot(x.T, U2)
-        R_y += np.dot(y.T, U1)
-        R_y += omega.reshape(-1,1) * Y_full
-
+        R_x = x.T @ U1 + y.T @ U2 - omega.reshape(-1, 1) * X_full
+        R_y = x.T @ U2 + y.T @ U1 + omega.reshape(-1, 1) * Y_full
 
         full_cost_end = time.time()
         full_cost += full_cost_end - full_cost_start
@@ -300,23 +290,20 @@ def Davidson_Casida(matrix_vector_product,
             print('All new guesses kicked out during GS orthonormalization')
             break
 
-    TD_end = time.time()
-
-    TD_cost = TD_end - TD_start
+    davidson_cost = time.time() - davidson_start
 
     if ii == (max_iter -1) and max_norm >= conv_tol:
         print('=== TDDFT eigen solver not converged due to max iteration mimit ===')
         print('max residual norms', np.max(r_norms))
 
-    print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, TD_cost))
-    print('final subspace', sub_A.shape[0])
-    print('max_norm = {:.2e}'.format(max_norm))
+    print(f'Finished in {ii+1:d} steps, {davidson_cost:.2f} seconds')
+    print(f'final subspace = {sub_A.shape[0]}', )
+    print(f'max_norm = {max_norm:.2e}')
     for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
-        print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/TD_cost))
-    # math_helper.show_memory_info('After Davidson Done')
+        print(f'{enrty:<10} {cost:<5.4f}s {cost/davidson_cost:<5.2%}')
+
     print('======= TDDFT Eigen Solver Done =======' )
-    # energies = omega*parameter.Hartree_to_eV
 
     return omega, X_full, Y_full
 
