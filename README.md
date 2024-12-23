@@ -1,10 +1,10 @@
 **Read this in other languages: [English](README.md), [中文](README_zh.md).**
 
 
-# pyscf-TDDFT-ris (v1.0)
+# TDDFT-ris-pyscf (v1.0)
 This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV-vis absorption spectra. The TDDFT-ris calculation starts from a completed SCF calculation, typically a `.fch` or `.molden` file. Also, it can start from the PySCF `mf` object.
 
-Currently, it supports UKS/RKS, TDA/TDDFT, pure/hybrid/range-separated-hybrid functional. Not yet support implicit solvation model.
+Currently, it supports UKS/RKS, TDA/TDDFT, pure/hybrid/range-separated-hybrid functional. Not yet support implicit solvation method.
 
 Note: 
 
@@ -13,7 +13,7 @@ Note:
 (2) Software package Amespv1.1dev has already built-in TDDFT-ris, see [Amesp](https://amesp.xyz/)
 
 ## Theory
-In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris model [1,2]. This is model achieved by two steps:
+In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris method [1,2]. This is method achieved by two steps:
 - approximate the two-electron integrals using resolution-of-the-identity technique (**RI**) with only one **$s$** type orbital per atom
 - disable the exchange-correlation kernel. 
 
@@ -21,185 +21,90 @@ The exponents $\alpha_A$ of the **$s$** type orbital centered on atom $A$ is rel
 
 $\alpha_A = \frac{\theta}{R_A^2}$
 
-Compared to traditional ab initio TDDFT, for excitation energy calculations of organic molecules, the TDDFT-ris model provides a nearly negligible deviation of just 0.06 eV. Moreover, it offers a significant computational advantage, being ~300 times faster. This represents a considerable improvement over the [simplified TDDFT (sTDDFT) model](https://github.com/grimme-lab/stda), which shows an energy deviation of 0.24 eV.
+Compared to traditional ab initio TDDFT, for excitation energy calculations of organic molecules, the TDDFT-ris method provides a nearly negligible deviation of just 0.06 eV. Moreover, it offers a significant computational advantage, being ~300 times faster. This represents a considerable improvement over the [simplified TDDFT (sTDDFT) method](https://github.com/grimme-lab/stda), which shows an energy deviation of 0.24 eV.
 
-Owing to its similar structure to ab initio TDDFT, the TDDFT-ris model can be readily integrated into most quantum chemistry packages with virtually no additional implementation effort. Software packages such as [TURBOMOLE7.7dev](https://www.turbomole.org/turbomole/release-notes-turbomole-7-7/) and [Amespv1.1dev](https://amesp.xyz/) have already built-in the TDDFT-ris method.
+Owing to the similar structure to ab initio TDDFT, the TDDFT-ris method can be readily integrated into most quantum chemistry packages with virtually no additional implementation effort. Software packages such as [TURBOMOLE7.7dev](https://www.turbomole.org/turbomole/release-notes-turbomole-7-7/) and [Amespv1.1dev](https://amesp.xyz/) have already built-in the TDDFT-ris method.
 
-[ORCA5.2](https://orcaforum.kofo.mpg.de/app.php/portal) will support TDDFT-ris calculation in the next release.
+[ORCA6.0](https://github.com/ORCAQuantumChemistry/CompoundScripts) supports TDDFT-ris calculation through compound script.
 
+However, if you need high performance, use my code :-)
 
-## Requirements
-This project requires the following packages:
-- python >= 3.8.0
-- pyscf >= 2.1.0
-- MOKIT (ORCA users can skip it)
-
-### (1) install MOKIT
-[MOKIT](https://gitlab.com/jxzou/mokit) is used to read the `.fch` file to initiate the TDDFT-ris calculation.
-
-
-#### Linux 
-For Linux users, the most easy way to install [MOKIT](https://gitlab.com/jxzou/mokit) is conda
-```
-conda create -n mokit-py39 python=3.9 # 3.7~3.11 are available
-conda activate mokit-py39
-conda install mokit -c mokit
-```
-
-Alternatively, download a pre-compiled MOKIT version is most convenient. After downloading the pre-built artifacts, you need to set the following environment
-variables (assuming MOKIT is put in `$HOME/software/mokit`) in your `~/.bashrc`:
-```
-export MOKIT_ROOT=$HOME/software/mokit
-export PATH=$MOKIT_ROOT/bin:$PATH
-export PYTHONPATH=$MOKIT_ROOT:$PYTHONPATH
-export LD_LIBRARY_PATH=$MOKIT_ROOT/mokit/lib:$LD_LIBRARY_PATH
-export GMS=$HOME/software/gamess/rungms
-```
-
-#### MacOS 
-For MacOS users, install MOKIT with `homebrew` is recommended:
-```
-brew install mokit --HEAD --with-py38
-```
-You can change `py38` to any other python version that you can import PySCF, such as py310 
-
-If any difficulty, please follow the [detailed MOKIT installation guide](https://gitlab.com/jxzou/mokit), 4 options have been provided.
-
-
-### (2) install PySCF
-[install PySCF](https://github.com/pyscf/pyscf) is pretty straightforward:
-```
-pip3 install pyscf
-pip3 install psutil
-```
-If any difficulty, please follow the [detailed PySCF installation guide](https://gitlab.com/jxzou/qcinstall/-/blob/main/%E7%A6%BB%E7%BA%BF%E5%AE%89%E8%A3%85PySCF-2.x.md).
-
-
-
-
-ORCA users can directly use the `.molden` file to initiate the TDDFT-ris calculation, and MOKIT is not required.
-
-## Instal PysCF_TDDFT_ris
+## Install TDDFT-ris-pyscf
 First, clone this repository to your local machine:
 ```
-git clone git@github.com:John-zzh/pyscf_TDDFT_ris.git
+git clone git@github.com:John-zzh/TDDFT-ris-pyscf.git
 ```
  
 Then add the repo path to your `PYTHONPATH` environment by adding the following commands to your `~/.bash_profile` or `~/.bashrc` file:
 ```
-export PYTHONPATH=path_to_your_dir:$PYTHONPATH
+export PYTHONPATH=absolue_path_to_ris_repo:$PYTHONPATH
 ```
-`path_to_your_directory` should be replaced with the path to the root directory, where you can see the `README.md` file. 
+`absolue_path_to_ris_repo` should be replaced with the absolute path to the cloned repository directory, where you can see the `README.md` file. 
 
-Adding the following `alias` to your `~/.bash_profile` or `~/.bashrc` file can save you some typing:
+
+
+### install MOKIT
+[MOKIT](https://gitlab.com/jxzou/mokit) is used to read the `.fch` file to read the ground state information. Install MOKIT with these commands:
+
 ```
-alias ris='python3.8 path_to_your_dir/main.py'
+conda create -n ris-mokit-pyscf-py39 python=3.9
+conda activate mokit-py39
+conda install mokit pyscf -c mokit/label/cf -c conda-forge
 ```
-Again, change `python3.8` to any other python version that you can import PySCF.
+
+Alternatively, see other install options at [MOKIT installation guide](https://gitlab.com/jxzou/mokit). The MOKIT developer Dr. Zou is very active. 
+
+
 
 ## Run the calculation
 
-The package has different interface for different software package, including Gaussian `.fch` file, ORCA `molden` file and PySCF `mf` object
+The calculation requires a ground state calculation output, either Gaussian `.fch` file or PySCF `mf` object
 
 ### Gaussian software: `.fch` file
-Suppose you have finished a DFT calculation with Gaussian and have a `.fch` file, you can run the TDDFT-ris calculation by executing the following command line:
+Suppose you have finished a pbe0 DFT calculation with Gaussian and have a `.fch` file, you can run the TDDFT-ris calculation for 10 lowest excited states by:
 ```
-ris -f path_to_your_fch_file -func pbe0
+python absolue_path_to_ris_repo/main.py -f path_to_your_fch_file -func pbe0 -n 10 -M 8000
 ```
 
-TDDFT-ris does not really need parallelization, because it is already very fast. But if you want to run it in parallel, you can set up the environment variables through command line:
+If you want to run it in parallel, you can set up the environment variables:
 ```
-export MKL_NUM_THREADS=2
-export OMP_NUM_THREADS=2
+export MKL_NUM_THREADS=4
+export OMP_NUM_THREADS=4
 ``````
 or other equivalent environment variables on your machine. The major
-computation is automatically parallelized by NumPy. I doubt the parallelization
-on more than 2 cores will bring any further speedup.
+computation is automatically parallelized by NumPy. 
+
+## Command-Line Arguments
+
+The following arguments can be passed to the program via the command line:
+
+| **Argument**         | **Type**    | **Default**    | **Description**                                                                |
+|----------------------|-------------|----------------|--------------------------------------------------------------------------------|
+| `-f`                 | `str`       | `None`         | Input `.fch` filename (e.g., `molecule.fch`).                                  |
+| `-fout`              | `str`       | `None`         | Output file name for spectra results.                                          |
+| `-func`              | `str`       | `None`         | Functional name (e.g., `pbe0`).                                                |
+| `-b`                 | `str`       | `None`         | Basis set name (e.g., `def2-SVP`).                                             |
+| `-ax`                | `float`     | `None`         | HF component in the hybrid functional.                                         |
+| `-w`                 | `float`     | `None`         | Screening factor in the range-separated functional.                            |
+| `-alpha`             | `float`     | `None`         | Alpha parameter in the range-separated functional.                             |
+| `-beta`              | `float`     | `None`         | Beta parameter in the range-separated functional.                              |
+| `-theta`             | `int`       | `0.2`          | Exponent parameter: `theta / R^2`, with an optimal value of `0.2`.             |
+| `-J_fit`             | `str`       | `sp`           | J fitting basis, options: `s`, `sp`, `spd`.                                    |
+| `-K_fit`             | `str`       | `s`            | K fitting basis, options: `s`, `sp`, `spd`.                                    |
+| `-M`                 | `int`       | `8000`         | Maximum memory usage in MB.                                                    |
+| `-Ktrunc`            | `float`     | `40`           | Truncation threshold for MO in K, in eV.                                       |
+| `-TDA`               | `bool`      | `False`        | Perform TDA calculation instead of TDDFT. **Deprecated for now**               |
+| `-n`                 | `int`       | `10`           | Number of excited states to solve.                                             |
+| `-t`                 | `float`     | `1e-3`         | Convergence tolerance in the Davidson diagonalization.                         |
+| `-i`                 | `int`       | `20`           | Maximum number of iterations in the Davidson diagonalization.                  |
+| `-pt`                | `float`     | `0.05`         | Threshold for printing the transition coefficients.                            |
+| `-spectra`           | `bool`      | `True`         | Print out the spectra file.                                                    |
+| `-specw`             | `float`     | `10.0`         | Spectra window (in eV).                                                        |
+| `-single`            | `bool`      | `True`         | Use single precision for calculations.                                         |
 
 
-All the options:
 
-(1) The `.fch` or `molden` input file that provides the basis set and molecular orbital coefficient information. For example, Gaussian `.fch` file or ORCA `molden` file. Default: None
-```
--f <input_filename>   
-```
-
-(2) The functional name. Default: None
-```
--func <functional_name>
-```   
-
-(3) The basis set name. Only need to specify this option when dealing with a `molden` file.  Default: None
-
-```
--b <basis>   
-```
-
-
-(4) The amount of Fock exchange in the hybrid functional (e.g. -ax 0.25 for PBE0). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
-```
--ax <a_x>  
-```
-
-(5) The screening factor in the range-separated hybrid (RSH)functional (e.g. -w 0.3 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
-```
--w <omega> 
-```
-
-(6) The alpha factor in the RSH functional (e.g. -al 0.157706 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
-```
--al <alpha>
-```
-
-
-(7) The alpha factor in the RSH functional (e.g. -be 0.842294 for wb97x). This option only takes effect when the functional name is not given or the given functional name is not included in the library.  Default: None. 
-```
--be <beta>
-```
-
-(8) The global parameter $\theta$ in the auxiliary basis $s$ orbital exponent, $\alpha_A = \frac{\theta}{R_A^2}$ Default: 0.2
-```
--th <theta>
-```
-
-(9) Adding an extra $p$ function to the auxiliary basis. Default: False
-```
--p <bool>
-```
-
-(10) Turn on the TDA approximation. Default: False
-
-```
--tda <bool>
-```
-
-(11) The number of excited states to be calculated. Default: 20
-```
--n <nroots>
-```
-
-(12) The convergence tolerance for the Davidson algorithm. Default: 1e-5
-```
--t <conv_tol>
-```
-
-(13) The maximum number of iterations for the Davidson algorithm. Default: 20
-```
--i <max_iter>
-```
-
-(14) The output spectra file name is `<output_filename>-***REMOVED***`. Default: `<input_filename>-***REMOVED***`
-```
--fout <output_filename>
-```
-
-
-(15) The threshold to print out the transition coefficients. Default: 0.05
-```
--pt <print_threshold>
-```
-
-### PySCF script: `mf` object
+### Calcuate with PySCF `mf` object
 
 
 Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculation by constructing `TDDTF_ris` object. For example
@@ -258,7 +163,7 @@ I would appreciate it if any user provide error information.
 1. Interface for other software packages that have not built-in the TDDFT-ris method, such as Qchem, NWChem, BDF.
 2. Uniformed output file to support NTO analysis.
 3. Assign certain elements with full default fitting basis, e.g. transition metals need full fitting basis
-4. Solvation model
+4. Solvation method
 
 ## Acknowledgements
 Thank Dr. Zou (the developer of MOKIT) for powerful interface support. Thank gjj for the detailed guidance of MOKIT installaiton on MacOS system. Thank Dr. Zhang (the developer of Amesp) for cross validation with TDDFT-ris implementation. Thank Dr. Della Sala for the development of TDDFT-as prototype, and contribution to the development of the TDDFT-ris method [1, 2].

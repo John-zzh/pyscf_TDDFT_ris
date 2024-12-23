@@ -169,8 +169,6 @@ def anti_block_symmetrize(A,m,n):
 def gen_VW(sub_A_holder, V_holder, W_holder, size_old, size_new, symmetry=False):
     '''
 
-
-
     [ V_old ] [W_old.T, W_new.T] = [VW_old,        V_old W_new.T] = [VW_old,   V_old W_new.T  ]
     [ V_new ]                      [V_new W_old.T, V_new W_new.T]   [  V_new  W_current.T     ]
 
@@ -216,37 +214,17 @@ size_new    |------------------------------------------------|
                 |---------------|-----------------｜-----------------｜
     '''
 
-    # W_current = W_holder[:size_new,:]
-    # V_new = V_holder[size_old:size_new, :]
 
-    # sub_A_holder[size_old:size_new, :size_new] = np.dot(V_new, W_current.T)
-    # sub_A_holder[:size_old, size_old:size_new] = sub_A_holder[size_old:size_new, :size_old].T
     V_current = V_holder[:size_new,:]
     W_new = W_holder[size_old:size_new, :]
-    # print('V_current, W_new', V_current.shape, W_new.shape)
-    # print('np.dot(V_current, W_new.T).shape', np.dot(V_current, W_new.T).shape)
-    sub_A_holder[:size_new, size_old:size_new] = np.dot(V_current, W_new.T)
+
+    sub_A_holder[:size_new, size_old:size_new] = V_current @ W_new.T
 
     if symmetry:
         pass
         # sub_A_holder[size_old:size_new, :size_old] = sub_A_holder[:size_old, size_old:size_new].T
     else:
-        sub_A_holder[size_old:size_new, :size_old] = np.dot(V_holder[size_old:size_new,:], W_holder[:size_old,:].T)
-
-    # if up_triangle == False:
-    #     '''
-    #     up_triangle == False means also explicitly compute the lower triangle,
-    #                                 either equal upper triangle.T or recompute
-    #     '''
-    #     V_new = V_holder[:,size_old:size_new]
-    #     W_old = W_holder[:,:size_old]
-    #     sub_A_holder[size_old:size_new,:size_old] = np.dot(V_new.T, W_old)
-    # elif up_triangle == True:
-    #     '''
-    #     otherwise juts let the lower triangle be zeros
-    #     the sub_A will be symmmetried any way
-    #     '''
-    #     pass
+        sub_A_holder[size_old:size_new, :size_old] = V_holder[size_old:size_new,:] @ W_holder[:size_old,:].T
 
     return sub_A_holder
 
@@ -419,7 +397,7 @@ def VW_Gram_Schmidt_fill_holder(V_holder, W_holder, m, X_new, Y_new, double=Fals
 
         x_tmp,y_tmp = S_symmetry_orthogonal(x_tmp,y_tmp)
 
-        xy_norm = (np.dot(x_tmp, x_tmp.T) + np.dot(y_tmp, y_tmp.T))**0.5
+        xy_norm = (nx_tmp @ x_tmp.T + y_tmp @ y_tmp.T)**0.5
 
 
         if  xy_norm > 1e-14:
@@ -442,7 +420,7 @@ def nKs_fill_holder(V_holder, W_holder, m, X_new, Y_new, double=False):
         x_tmp = X_new[j,:].reshape(1,-1)
         y_tmp = Y_new[j,:].reshape(1,-1)
         x_tmp,y_tmp = S_symmetry_orthogonal(x_tmp,y_tmp)
-        xy_norm = (np.dot(x_tmp, x_tmp.T) + np.dot(y_tmp, y_tmp.T))**0.5
+        xy_norm = (x_tmp @ x_tmp.T + y_tmp @ y_tmp.T)**0.5
         x_tmp = x_tmp/xy_norm
         y_tmp = y_tmp/xy_norm
 
@@ -689,7 +667,7 @@ def gen_VW_f_order(sub_A_holder, V_holder, W_holder, size_old, size_new, symmetr
 
     V_current = V_holder[:,:size_new]
     W_new = W_holder[:,size_old:size_new]
-    sub_A_holder[:size_new,size_old:size_new] = np.dot(V_current.T, W_new)
+    sub_A_holder[:size_new,size_old:size_new] = V_current.T @ W_new
 
     if symmetry == True:
         sub_A_holder = block_symmetrize(sub_A_holder,size_old,size_new)
@@ -701,7 +679,7 @@ def gen_VW_f_order(sub_A_holder, V_holder, W_holder, size_old, size_new, symmetr
             '''
             V_new = V_holder[:,size_old:size_new]
             W_old = W_holder[:,:size_old]
-            sub_A_holder[size_old:size_new,:size_old] = np.dot(V_new.T, W_old)
+            sub_A_holder[size_old:size_new,:size_old] = V_new.T @ W_old
         elif up_triangle == True:
             '''
             otherwise juts let the lower triangle be zeros
