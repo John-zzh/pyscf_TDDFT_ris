@@ -61,10 +61,10 @@ Alternatively, see other install options at [MOKIT installation guide](https://g
 The calculation requires a ground state calculation output, either Gaussian `.fch` file or PySCF `mf` object
 
 ### Gaussian software: `.fch` file
-Suppose you have finished a pbe0 DFT calculation with Gaussian and have a `.fch` file, you can run the TDDFT-ris calculation for 10 lowest excited states by:
+Suppose you have finished a PBE0 DFT calculation with Gaussian and have a `.fch` file, you can run the TDDFT-ris calculation for 10 lowest excited states by:
 ```
 conda activate ris-mokit-pyscf-py39
-python absolue_path_to_ris_repo/main.py -f path_to_your_fch_file -func pbe0 -n 10 -M 8000
+python absolue_path_to_ris_repo/main.py -f molecule.fch -func pbe0 -n 10 -M 8000
 ```
 
 If you want parallel calculation, you can set up the environment variables:
