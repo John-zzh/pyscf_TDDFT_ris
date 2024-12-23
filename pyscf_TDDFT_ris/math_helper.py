@@ -397,7 +397,7 @@ def VW_Gram_Schmidt_fill_holder(V_holder, W_holder, m, X_new, Y_new, double=Fals
 
         x_tmp,y_tmp = S_symmetry_orthogonal(x_tmp,y_tmp)
 
-        xy_norm = (nx_tmp @ x_tmp.T + y_tmp @ y_tmp.T)**0.5
+        xy_norm = (x_tmp @ x_tmp.T + y_tmp @ y_tmp.T)**0.5
 
 
         if  xy_norm > 1e-14:
