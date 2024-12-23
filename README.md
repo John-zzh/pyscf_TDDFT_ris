@@ -84,7 +84,6 @@ The following arguments can be passed to the program via the command line:
 | `-f`                 | `str`       | `None`         | Input `.fch` filename (e.g., `molecule.fch`).                                  |
 | `-fout`              | `str`       | `None`         | Output file name for spectra results.                                          |
 | `-func`              | `str`       | `None`         | Functional name (e.g., `pbe0`).                                                |
-| `-b`                 | `str`       | `None`         | Basis set name (e.g., `def2-SVP`).                                             |
 | `-ax`                | `float`     | `None`         | HF component in the hybrid functional.                                         |
 | `-w`                 | `float`     | `None`         | Screening factor in the range-separated functional.                            |
 | `-alpha`             | `float`     | `None`         | Alpha parameter in the range-separated functional.                             |

@@ -40,7 +40,7 @@ def Davidson(matrix_vector_product,
 
     subcost = 0
     MVcost = 0
-    GScost = 0
+    fill_holder_cost = 0
     subgencost = 0
     full_cost = 0
     print('step max||r||   sub_A.shape')
@@ -92,11 +92,11 @@ def Davidson(matrix_vector_product,
                                             sub_eigenvalue = sub_eigenvalue[index],
                                             hdiag = hdiag)
 
-        GScost_start = time.time()
+        fill_holder_cost_start = time.time()
         size_old = size_new
         V_holder, size_new = math_helper.Gram_Schmidt_fill_holder(V_holder, size_old, new_guess, double=True)
-        GScost_end = time.time()
-        GScost += GScost_end - GScost_start
+        fill_holder_cost_end = time.time()
+        fill_holder_cost += fill_holder_cost_end - fill_holder_cost_start
 
     # energies = sub_eigenvalue*parameter.Hartree_to_eV
 
@@ -112,7 +112,7 @@ def Davidson(matrix_vector_product,
     print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, Dcost))
     print('Maximum residual norm = {:.2e}'.format(max_norm))
     print('Final subspace size = {:d}'.format(sub_A.shape[0]))
-    for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
+    for enrty in ['MVcost','fill_holder_cost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
         print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/Dcost))
     print('========== Davidson Diagonalization Done ==========')
@@ -174,8 +174,8 @@ def Davidson_Casida(matrix_vector_product,
                                                 hdiag=hdiag)
     subcost = 0
     MVcost = 0
-    GScost = 0
-    GS_step_cost = 0
+    fill_holder_cost = 0
+    fill_holder_step_cost = 0
     subgencost = 0
     full_cost = 0
     # math_helper.show_memory_info('After Davidson initial guess set up')
@@ -256,7 +256,7 @@ def Davidson_Casida(matrix_vector_product,
         # print('r_norms.shape', len(r_norms))
         max_norm = np.max(r_norms)
         # print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
-        print(f'iter: {ii+1:<3d}  max|R|: {max_norm:<10.4e} new_vectors: {size_new - size_old}  MVP: {MV_end - MV_start:.1f} sec GS: {GS_step_cost:.1f} sec')
+        print(f'iter: {ii+1:<3d}  max|R|: {max_norm:<10.2e} new_vectors: {size_new - size_old}  MVP: {MV_end - MV_start:.1f} seconds')
 
         if max_norm < conv_tol or ii == (max_iter -1):
             # math_helper.show_memory_info('After last Davidson iteration')
@@ -276,18 +276,18 @@ def Davidson_Casida(matrix_vector_product,
         GS and symmetric orthonormalization
         '''
         size_old = size_new
-        GScost_start = time.time()
+        fill_holder_cost_start = time.time()
         V_holder, W_holder, size_new = fill_holder(V_holder=V_holder,
                                                     W_holder=W_holder,
                                                     X_new=X_new,
                                                     Y_new=Y_new,
                                                     m=size_old,
                                                     double=False)
-        GS_step_cost = time.time() - GScost_start
-        GScost += GS_step_cost
+        fill_holder_step_cost = time.time() - fill_holder_cost_start
+        fill_holder_cost += fill_holder_step_cost
 
         if size_new == size_old:
-            print('All new guesses kicked out during GS orthonormalization')
+            print('All new guesses kicked out!!!!!!!')
             break
 
     davidson_cost = time.time() - davidson_start
@@ -299,7 +299,7 @@ def Davidson_Casida(matrix_vector_product,
     print(f'Finished in {ii+1:d} steps, {davidson_cost:.2f} seconds')
     print(f'final subspace = {sub_A.shape[0]}', )
     print(f'max_norm = {max_norm:.2e}')
-    for enrty in ['MVcost','GScost','subgencost','subcost','full_cost']:
+    for enrty in ['MVcost','fill_holder_cost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
         print(f'{enrty:<10} {cost:<5.4f}s {cost/davidson_cost:<5.2%}')
 

@@ -633,7 +633,7 @@ class TDDFT_ris(object):
 
                 else:
                     raise ValueError('missing parameters for range-separated XC functional, please input (w, al, be)')
-
+        print('self.a_x', self.a_x)
         if self.mol.cart:
             self.eri_tag = '_cart'
         else:
