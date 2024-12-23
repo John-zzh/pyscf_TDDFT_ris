@@ -48,7 +48,7 @@ export PYTHONPATH=absolue_path_to_ris_repo:$PYTHONPATH
 
 ```
 conda create -n ris-mokit-pyscf-py39 python=3.9
-conda activate mokit-py39
+conda activate ris-mokit-pyscf-py39
 conda install mokit pyscf -c mokit/label/cf -c conda-forge
 ```
 
@@ -63,10 +63,11 @@ The calculation requires a ground state calculation output, either Gaussian `.fc
 ### Gaussian software: `.fch` file
 Suppose you have finished a pbe0 DFT calculation with Gaussian and have a `.fch` file, you can run the TDDFT-ris calculation for 10 lowest excited states by:
 ```
+conda activate ris-mokit-pyscf-py39
 python absolue_path_to_ris_repo/main.py -f path_to_your_fch_file -func pbe0 -n 10 -M 8000
 ```
 
-If you want to run it in parallel, you can set up the environment variables:
+If you want parallel calculation, you can set up the environment variables:
 ```
 export MKL_NUM_THREADS=4
 export OMP_NUM_THREADS=4
