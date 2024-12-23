@@ -1,9 +1,7 @@
 
 import numpy as np
-from pyscf_TDDFT_ris import math_helper
-from pyscf_TDDFT_ris import math_helper_old
+from pyscf_TDDFT_ris import math_helper_old as math_helper
 import time
-from pyscf_TDDFT_ris import parameter
 
 def Davidson(matrix_vector_product,
                     hdiag,
@@ -122,14 +120,13 @@ def Davidson_Casida(matrix_vector_product,
                         N_states=20,
                         conv_tol=1e-5,
                         max_iter=25,
-                        GS = False,
                         single=False ):
     '''
     [ A B ] X - [1   0] Y Ω = 0
     [ B A ] Y   [0  -1] X   = 0
 
     '''
-    print('======= TDDFT Eigen Solver Statrs =======')
+    print('======= TDDFT-ris Eiegn Solver Statrs =======')
 
     TD_start = time.time()
     A_size = hdiag.shape[0]
@@ -139,19 +136,8 @@ def Davidson_Casida(matrix_vector_product,
 
     max_N_mv = (max_iter+1)*N_states
     
-    '''
-    [U1] = [A B][V]
-    [U2]   [B A][W]
 
-    U1 = AV + BW
-    U2 = AW + BV
-
-    a = [V.T W.T][A B][V] = [V.T W.T][U1] = VU1 + WU2
-                 [B A][W]            [U2]
-    '''
-
-    # V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64, order='F')
-    V_holder = np.zeros((max_N_mv, A_size),dtype=np.float32 if single else np.float64)
+    V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64, order='F')
     W_holder = np.zeros_like(V_holder)
 
     U1_holder = np.zeros_like(V_holder)
@@ -167,54 +153,58 @@ def Davidson_Casida(matrix_vector_product,
     WW_holder = np.zeros_like(VU1_holder)
 
     '''
-    set up initial guess V= TDA initial guess, W=0
+    set up initial guess V= TDA initila guess, W=0
     '''
 
-    V_holder = math_helper.TDA_diag_initial_guess(V_holder=V_holder,
-                                                N_states=size_new,
-                                                hdiag=hdiag)
+    V_holder = math_helper.TDA_diag_initial_guess(V_holder = V_holder,
+                                         N_states = size_new,
+                                         hdiag = hdiag)
     subcost = 0
     MVcost = 0
     GScost = 0
-    GS_step_cost = 0
     subgencost = 0
     full_cost = 0
     # math_helper.show_memory_info('After Davidson initial guess set up')
-    # print('step maximum residual norm')
-
-    if GS == True:
-        fill_holder = math_helper.VW_Gram_Schmidt_fill_holder
-    else:
-        fill_holder = math_helper.nKs_fill_holder
-
+    print('step maximum residual norm')
     for ii in range(max_iter):
 
+        V = V_holder[:,:size_new]
+        W = W_holder[:,:size_new]
+
+        '''
+        U1 = AV + BW
+        U2 = AW + BV
+        '''
         # print('size_old =', size_old)
         # print('size_new =', size_new)
         MV_start = time.time()
-
-        U1_holder[size_old:size_new, :], U2_holder[size_old:size_new, :] = matrix_vector_product(
-                                                                            X=V_holder[size_old:size_new, :],
-                                                                            Y=W_holder[size_old:size_new, :])
+        U1_holder[:, size_old:size_new], U2_holder[:, size_old:size_new] = matrix_vector_product(
+                                                            X=V[:, size_old:size_new],
+                                                            Y=W[:, size_old:size_new])
         MV_end = time.time()
         MVcost += MV_end - MV_start
 
+        U1 = U1_holder[:,:size_new]
+        U2 = U2_holder[:,:size_new]
+
         subgenstart = time.time()
 
-
-
         '''
-        generate the subspace matrices
-        sub_A = np.dot
+        [U1] = [A B][V]
+        [U2]   [B A][W]
+
+        a = [V.T W.T][A B][V] = [V.T W.T][U1] = VU1 + WU2
+                     [B A][W]            [U2]
         '''
+
         (sub_A, sub_B, sigma, pi,
         VU1_holder, WU2_holder, VU2_holder, WU1_holder,
         VV_holder, WW_holder, VW_holder) = math_helper.gen_sub_ab(
-                                                    V_holder, W_holder, U1_holder, U2_holder,
-                                                    VU1_holder, WU2_holder, VU2_holder, WU1_holder,
-                                                    VV_holder, WW_holder, VW_holder,
-                                                    size_old, size_new)
-
+                      V_holder, W_holder, U1_holder, U2_holder,
+                      VU1_holder, WU2_holder, VU2_holder, WU1_holder,
+                      VV_holder, WW_holder, VW_holder,
+                      size_old, size_new)
+        # print('sub_A size =', sub_A.shape)
         subgenend = time.time()
         subgencost += subgenend - subgenstart
 
@@ -222,12 +212,10 @@ def Davidson_Casida(matrix_vector_product,
         solve the eigenvalue omega in the subspace
         '''
         subcost_start = time.time()
-        # pi = pi * -1
         omega, x, y = math_helper.TDDFT_subspace_eigen_solver(sub_A, sub_B, sigma, pi, N_states)
-        # print('omega =', omega*parameter.Hartree_to_eV)
         subcost_end = time.time()
         subcost += subcost_end - subcost_start
-        # print(sub_A, sub_B, sigma, pi)
+
         '''
         compute the residual
         R_x = U1x + U2y - X_full*omega
@@ -236,38 +224,27 @@ def Davidson_Casida(matrix_vector_product,
         Y_full = Wx + Vy
         '''
         full_cost_start = time.time()
- 
-        V = V_holder[:size_new,:]
-        W = W_holder[:size_new,:]
-        U1 = U1_holder[:size_new, :]
-        U2 = U2_holder[:size_new, :]
+        X_full = np.dot(V,x)
+        X_full += np.dot(W,y)
 
-        X_full = np.dot(x.T, V)
-        X_full += np.dot(y.T, W)
+        Y_full = np.dot(W,x)
+        Y_full += np.dot(V,y)
 
-        Y_full = np.dot(x.T, W)
-        Y_full += np.dot(y.T, V)
+        R_x = np.dot(U1,x)
+        R_x += np.dot(U2,y)
+        R_x -= X_full*omega
 
-        R_x = np.dot(x.T, U1)
-        R_x += np.dot(y.T, U2)
-        R_x -= omega.reshape(-1,1) * X_full
-
-        R_y = np.dot(x.T, U2)
-        R_y += np.dot(y.T, U1)
-        R_y += omega.reshape(-1,1) * Y_full
-
+        R_y = np.dot(U2,x)
+        R_y += np.dot(U1,y)
+        R_y += Y_full*omega
 
         full_cost_end = time.time()
         full_cost += full_cost_end - full_cost_start
 
-        residual = np.hstack((R_x, R_y))
-        # print('residual size =', residual.shape)
-        r_norms = np.linalg.norm(residual, axis=1).tolist()
-        # print('r_norms.shape', len(r_norms))
+        residual = np.vstack((R_x, R_y))
+        r_norms = np.linalg.norm(residual, axis=0).tolist()
         max_norm = np.max(r_norms)
-        # print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
-        print(f'iter: {ii+1:<3d}  max|R|: {max_norm:<10.4e} new_vectors: {size_new - size_old}  MVP: {MV_end - MV_start:.1f} sec GS: {GS_step_cost:.1f} sec')
-
+        print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
         if max_norm < conv_tol or ii == (max_iter -1):
             # math_helper.show_memory_info('After last Davidson iteration')
             break
@@ -277,24 +254,23 @@ def Davidson_Casida(matrix_vector_product,
         '''
         preconditioning step
         '''
-        X_new, Y_new = math_helper.TDDFT_diag_preconditioner(R_x=R_x[index,:],
-                                                            R_y=R_y[index,:],
-                                                            omega=omega[index],
-                                                            hdiag=hdiag)     
-                                                   
+        X_new, Y_new = math_helper.TDDFT_diag_preconditioner(R_x = R_x[:,index],
+                                                   R_y = R_y[:,index],
+                                                 omega = omega[index],
+                                                 hdiag = hdiag)
         '''
         GS and symmetric orthonormalization
         '''
         size_old = size_new
         GScost_start = time.time()
-        V_holder, W_holder, size_new = fill_holder(V_holder=V_holder,
-                                                    W_holder=W_holder,
-                                                    X_new=X_new,
-                                                    Y_new=Y_new,
-                                                    m=size_old,
-                                                    double=False)
-        GS_step_cost = time.time() - GScost_start
-        GScost += GS_step_cost
+        V_holder, W_holder, size_new = math_helper.VW_Gram_Schmidt_fill_holder(V_holder=V_holder,
+                                                                                W_holder=W_holder,
+                                                                                X_new=X_new,
+                                                                                Y_new=Y_new,
+                                                                                m=size_old,
+                                                                                double=False)
+        GScost_end = time.time()
+        GScost += GScost_end - GScost_start
 
         if size_new == size_old:
             print('All new guesses kicked out during GS orthonormalization')
@@ -304,9 +280,9 @@ def Davidson_Casida(matrix_vector_product,
 
     TD_cost = TD_end - TD_start
 
-    if ii == (max_iter -1) and max_norm >= conv_tol:
-        print('=== TDDFT eigen solver not converged due to max iteration mimit ===')
-        print('max residual norms', np.max(r_norms))
+    if ii == (max_iter -1):
+        print('=== TDDFT eigen solver Failed Due to Iteration Limit ===')
+        print('current residual norms', r_norms)
 
     print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, TD_cost))
     print('final subspace', sub_A.shape[0])
