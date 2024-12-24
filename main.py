@@ -79,6 +79,8 @@ if __name__ == '__main__':
     if args.filename[-4:] == '.fch' :
         mf = readMO.get_mf_from_fch(fch_file=args.filename, 
                                     functional=args.functional)
+        get_mf_from_fch_time = time.time() - start
+        print(f'get_mf_from_fch_time: {get_mf_from_fch_time:.2f} seconds')
     elif 'molden' in args.filename:
         print('!!!!!!!!!!!warning: molden is not the best format to read MO. Pleas use MOKIT to convert your file to fch format!!!!!!!!!!!!!')
         if args.basis == None:

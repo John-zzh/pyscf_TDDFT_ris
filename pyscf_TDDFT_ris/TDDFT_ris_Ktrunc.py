@@ -321,7 +321,7 @@ def get_pre_Tpq_one_batch(eri3c: np.ndarray, C_p: np.ndarray, C_q: np.ndarray):
     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
     # print(f'T_pq  np.dot(tmp, C_q)time {time.time() - tt:.1f} seconds')
     # tt = time.time()
-    # print(f'    pre_T_pq time: {time.time() - t_satrt:.1f} seconds')
+    print(f'    pre_T_pq time: {time.time() - t_satrt:.1f} seconds')
     return pre_T_pq
 
 def get_pre_T_pq_to_Tpq(pre_T_pq: np.ndarray, lower_inv_eri2c: np.ndarray):
@@ -342,7 +342,7 @@ def get_pre_T_pq_to_Tpq(pre_T_pq: np.ndarray, lower_inv_eri2c: np.ndarray):
     # print(f'T_pq  np.dot(lower_inv_eri2c.T, pre_T_pq) time {time.time() - tt:.1f} seconds') 
     
     # print('T_pq.shape', T_pq.shape)
-    # print(f'T_pq one batch time {time.time() - tt:.1f} seconds')
+    print(f'pre_T_pq_to_Tpq one batch time {time.time() - tt:.1f} seconds')
     return T_pq 
 
 def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
