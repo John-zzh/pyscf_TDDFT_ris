@@ -93,6 +93,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
                 Y = Y.reshape(n_state, n_occ, n_vir)
 
             filename = name + '_transition_coefficient_for_Multiwfn.txt'
+
             with open(filename, 'w') as f:
                 
                 for state in range(n_state):
@@ -106,12 +107,9 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
 
                     print(*results, sep='\n')
                     f.write('\n'.join(results) + '\n\n')
+            print('transition coefficient data also written to', filename)
         else:
             print('UKS transition coefficient not implemenetd yet')
-
-
-
-
 
         entry = [eV, nm, cm_1, oscillator_strength]
         data = np.zeros((eV.shape[0],len(entry)))
@@ -125,9 +123,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         filename = name + '_eV_oscillator_strength_for_Multiwfn.txt'
         with open(filename, 'w') as f:
             np.savetxt(f, data[:,(0,3)], fmt='%.5f', header=f'{len(energies)} 1', comments='')
-        print('spectra data written to', filename)
-
-        print('print_threshold:', print_threshold)
+        print('spectra data also written to', filename)
 
     return oscillator_strength
 

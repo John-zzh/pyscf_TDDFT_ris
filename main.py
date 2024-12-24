@@ -33,6 +33,7 @@ def gen_args():
     parser.add_argument('-t',    '--conv_tol',          type=float,  default=1e-3,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',          type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
     parser.add_argument('-pt',   '--print_threshold',   type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
+    parser.add_argument('-GS',    '--GS',              type=str2bool,   default=False,    help='use Gram-Schdmit orthogonalization in Davidson diagonalization')
     parser.add_argument('-spectra', '--spectra',        type=str2bool,   default=True,    help='print out the spectra file')
     parser.add_argument('-single', '--single',          type=str2bool,   default='True', help='use single precision')
 
@@ -100,6 +101,7 @@ if __name__ == '__main__':
                     conv_tol=args.conv_tol,
                     nroots=args.nroots, 
                     single=args.single,
+                    GS=args.GS,
                     max_iter=args.max_iter,
                     out_name=args.spectraoutname,
                     spectra = args.spectra,
@@ -112,3 +114,37 @@ if __name__ == '__main__':
         energies, X, Y, oscillator_strength = td.kernel_TDDFT()
     end = time.time()
     print(f'total ris time: {end-start:.2f} seconds')
+
+    citation_info = """
+    Please cite the TDDFT-ris method:
+
+        1.  Zhou, Zehao, Fabio Della Sala, and Shane M. Parker. 
+            Minimal auxiliary basis set approach for the electronic excitation spectra 
+            of organic molecules. The Journal of Physical Chemistry Letters 
+            14, no. 7 (2023): 1968-1976.
+            (must cite)
+
+        2.  Zhou, Zehao, and Shane M. Parker. 
+            Converging Time-Dependent Density Functional Theory Calculations in Five Iterations 
+            with Minimal Auxiliary Preconditioning. Journal of Chemical Theory and Computation 
+            20, no. 15 (2024): 6738-6746. 
+            (for efficient orbital truncation technique)
+
+        2.  Giannone, Giulia, and Fabio Della Sala. 
+            Minimal auxiliary basis set for time-dependent density functional theory and 
+            comparison with tight-binding approximations: Application to silver nanoparticles.
+            The Journal of Chemical Physics 153, no. 8 (2020).
+            (The idea of TDDFT-ris originates from TDDFT-as)
+
+    And cite the pyscf-TDDFT-ris package:
+
+        1. Zehao Zhou, pyscf-TDDFT-ris, (https://github.com/John-zzh/pyscf_TDDFT_ris)
+
+        2. Jingxiang Zou, Molecular Orbital Kit (MOKIT), (https://gitlab.com/jxzou/mokit)
+
+        3. PySCF: the Python-based simulations of chemistry framework, 
+           Q. Sun, et. al., and G. K.-L. Chan, WIREs Comput. Mol. Sci. 8, e1340 (2018) 
+           (https://pyscf.org/about.html)
+    """
+
+    print(citation_info)

@@ -182,8 +182,17 @@ def Davidson_Casida(matrix_vector_product,
     # print('step maximum residual norm')
 
     if GS == True:
+        print('Using Gram-Schmidt orthogonalization')
         fill_holder = math_helper.VW_Gram_Schmidt_fill_holder
     else:
+        print('Using non-orthogonalized Krylov subspace (nKs) method.')
+
+        citation = ''' 
+        Furche, Filipp, Brandon T. Krull, Brian D. Nguyen, and Jake Kwon. 
+        Accelerating molecular property calculations with nonorthonormal Krylov space methods.
+        The Journal of Chemical Physics 144, no. 17 (2016).
+        '''
+        print(citation)
         fill_holder = math_helper.nKs_fill_holder
 
     for ii in range(max_iter):
