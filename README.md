@@ -70,10 +70,10 @@ formchk molecule.chk molecule.fch
 Then you can run the TDDFT-ris calculation for 10 lowest excited states on 4 CPUs with 8G RAM by:
 ```
 conda activate ris-mokit-pyscf-py39
-export PYTHONPATH=absolue_path_to_ris_repo:$PYTHONPATH
+export PYTHONPATH=absolute_path_to_ris_repo:$PYTHONPATH
 export MKL_NUM_THREADS=4
 export OMP_NUM_THREADS=4
-python absolue_path_to_ris_repo/main.py -f molecule.fch -func pbe0 -n 10 -M 8000
+python absolute_path_to_ris_repo/main.py -f molecule.fch -func pbe0 -n 10 -M 8000
 ```
 NumPy provides major parallelization. Set up other environment variables according to your needs.
 
