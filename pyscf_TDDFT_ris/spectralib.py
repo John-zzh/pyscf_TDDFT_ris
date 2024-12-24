@@ -98,7 +98,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
                 
                 for state in range(n_state):
                     print(f" Excited State  {state+1:4d}:      Singlet-A      {eV[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=0.000")
-                    f.write(f" Excited State  {state+1:4d}   1    {oscillator_strength[state]:>.4f} \n")
+                    f.write(f" Excited State  {state+1:4d}   1    {eV[state]:>.4f} \n")
                     results = print_coeff(state, X, '->', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
                     # print(*results, sep='\n')
 
