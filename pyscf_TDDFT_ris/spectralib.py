@@ -92,7 +92,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
             if isinstance(Y, np.ndarray):
                 Y = Y.reshape(n_state, n_occ, n_vir)
 
-            filename = name + '_transition_coefficient_for_Multiwfn.txt'
+            filename = name + '_coeff_Multiwfn.txt'
 
             with open(filename, 'w') as f:
                 
@@ -120,7 +120,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         for row in range(data.shape[0]):
             print(f'{data[row,0]:<8.3f} {data[row,1]:<8.0f} {data[row,2]:<8.0f} {data[row,3]:<8.8f}')
 
-        filename = name + '_eV_oscillator_strength_for_Multiwfn.txt'
+        filename = name + '_eV_os_Multiwfn.txt'
         with open(filename, 'w') as f:
             np.savetxt(f, data[:,(0,3)], fmt='%.5f', header=f'{len(energies)} 1', comments='')
         print('spectra data also written to', filename)
