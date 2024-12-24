@@ -14,12 +14,14 @@ Note:
 
 ## Theory
 In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris method [1,2]. This is method achieved by two steps:
-- approximate the two-electron integrals using resolution-of-the-identity technique (**RI**) with only one **$s$** type orbital per atom (an extra **$p$** type orbital for non-hydrogen atom can further improve the accuracy).
+- approximate the two-electron integrals using resolution-of-the-identity technique (**RI**) with only one **$s$** type orbital per atom.
 - disable the exchange-correlation kernel. 
 
 The exponents $\alpha_A$ of the auxiliaty basis function centered on atom $A$ is related to the tabulated semi-empirical atomic radii $R_A$. Only one global parameter $\theta$ was fine-tuned across various hybrid exchange-correlation functional.
 
 $\alpha_A = \frac{\theta}{R_A^2}$
+
+An extra **$p$** type orbital for non-hydrogen atom can further improve the accuracy. This setup is called TDDFT-risp, which is the default setting in this package. You can choose add up to **$d$** function.
 
 Compared to traditional ab initio TDDFT, for excitation energy calculations of organic molecules, the TDDFT-ris method provides a nearly negligible deviation of just 0.06 eV. Moreover, it offers a significant computational advantage, being ~300 times faster. This represents a considerable improvement over the [simplified TDDFT (sTDDFT) method](https://github.com/grimme-lab/stda), which shows an energy deviation of 0.24 eV.
 
