@@ -166,9 +166,23 @@ Thank Dr. Zou (the developer of MOKIT) for powerful interface support. Thank gjj
 
 ## Reference
 To cite the TDDFT-ris method:
-1. [Zhou, Z., Della Sala, F. and Parker, S.M., 2023. Minimal auxiliary basis set approach for the electronic excitation spectra of organic molecules. The Journal of Physical Chemistry Letters, 14, pp.1968-1976.](https://pubs.acs.org/doi/10.1021/acs.jpclett.2c03698)
-2. [Giannone, G. and Della Sala, F., 2020. Minimal auxiliary basis set for time-dependent density functional theory and comparison with tight-binding approximations: Application to silver nanoparticles. The Journal of Chemical Physics, 153(8), p.084110.](https://doi.org/10.1063/5.0020545)
+1. [Zhou, Zehao, Fabio Della Sala, and Shane M. Parker. 
+     Minimal auxiliary basis set approach for the electronic excitation spectra 
+    of organic molecules. The Journal of Physical Chemistry Letters 
+    14, no. 7 (2023): 1968-1976.](https://pubs.acs.org/doi/10.1021/acs.jpclett.2c03698)(must cite)
+2. [Zhou, Zehao, and Shane M. Parker. 
+            Converging Time-Dependent Density Functional Theory Calculations in Five Iterations 
+            with Minimal Auxiliary Preconditioning. Journal of Chemical Theory and Computation 
+            20, no. 15 (2024): 6738-6746.](https://pubs.acs.org/doi/10.1021/acs.jctc.4c00577) 
+            (for efficient orbital truncation technique)
+3. [ Zhou, Zehao, and Shane M. Parker. 
+            Converging Time-Dependent Density Functional Theory Calculations in Five Iterations 
+            with Minimal Auxiliary Preconditioning. Journal of Chemical Theory and Computation 
+            20, no. 15 (2024): 6738-6746. ](https://doi.org/10.1063/5.0020545)(The idea of TDDFT-ris originates from TDDFT-as)
    
 To cite the pyscf-TDDFT-ris package:
 1. Zehao Zhou, pyscf-TDDFT-ris, https://github.com/John-zzh/pyscf_TDDFT_ris
 2. Jingxiang Zou, Molecular Orbital Kit (MOKIT) https://gitlab.com/jxzou/mokit (see mored detailed citation instructions on MOKIT webpage)
+3. PySCF: the Python-based simulations of chemistry framework, 
+           Q. Sun, et. al., and G. K.-L. Chan, WIREs Comput. Mol. Sci. 8, e1340 (2018) 
+           (https://pyscf.org/about.html)
