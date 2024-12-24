@@ -22,8 +22,6 @@ def gen_args():
     parser.add_argument('-beta',   '--beta',        type=float, default=None,      help='beta in the range-separated functional')
     
     parser.add_argument('-theta',   '--theta',       type=int,   default=0.2,       help='exponent = theta/R^2, optimal theta = 0.2')
-    parser.add_argument('-p',    '--add_p',       type=str2bool,  default=False,     help='add an extra p function to the auxilibary basis')
-
     parser.add_argument('-J_fit',   '--J_fit',       type=str,  default='sp',   choices=['s', 'sp', 'spd'],  help='J fitting basis')
     parser.add_argument('-K_fit',   '--K_fit',       type=str,  default='s',    choices=['s', 'sp', 'spd'],  help='K fitting basis')
     parser.add_argument('-M',      '--max_mem_mb',   type=int,  default=8000,     help='maximum memory in MB')
@@ -35,17 +33,17 @@ def gen_args():
     parser.add_argument('-t',    '--conv_tol',          type=float,  default=1e-3,      help='the convengence tolerance in the Davidson diagonalization')
     parser.add_argument('-i',    '--max_iter',          type=int,   default=20,        help='the number of iterations in the Davidson diagonalization')
     parser.add_argument('-pt',   '--print_threshold',   type=float,   default=0.05,        help='the threshold of printing the transition coefficients')
-    
-    
-    # parser.add_argument('-CSF', '--CSF_trunc',          type=str2bool,   default=False,    help='truncate the CSF basis to speedup the calculation')
     parser.add_argument('-spectra', '--spectra',        type=str2bool,   default=True,    help='print out the spectra file')
+    parser.add_argument('-single', '--single',          type=str2bool,   default='True', help='use single precision')
+
+    # parser.add_argument('-CSF', '--CSF_trunc',          type=str2bool,   default=False,    help='truncate the CSF basis to speedup the calculation')
+    
     # parser.add_argument('-specw', '--spectra_window',   type=float,   default=10.0,    help='the window of the spectra up to, in eV')
     # parser.add_argument('-pt2_tol', '--pt2_tol',        type=float,   default=1e-4, help='the threshold of S-CSF PT2 evaluation')
     # parser.add_argument('-N', '--N_cpus',               type=int,   default=10, help='the number of CPUs to use')
-    parser.add_argument('-single', '--single',          type=str2bool,   default='True', help='use single precision')
+    
     # parser.add_argument('-approx', '--approximation',   type=str,   default='ris', help='ris sTDA')
 
-    
     args = parser.parse_args()
 
     if args.filename == None:
