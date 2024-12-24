@@ -1,16 +1,18 @@
 from pyscf_TDDFT_ris import readMO
-
 import argparse, os
 import time
-def str2bool(str):
-    if str.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif str.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Unsupported value encountered.')
+
 
 def gen_args():
+
+    def str2bool(str):
+        if str.lower() in ('yes', 'true', 't', 'y', '1'):
+            return True
+        elif str.lower() in ('no', 'false', 'f', 'n', '0'):
+            return False
+        else:
+            raise argparse.ArgumentTypeError('Unsupported value encountered.')
+
     parser = argparse.ArgumentParser(description='Davidson')
     parser.add_argument('-f',    '--filename',    type=str,   default=None,      help='.fch filename (molecule.fch)')
     parser.add_argument('-fout', '--spectraoutname', type=str,   default=None,      help='output file name')
@@ -52,7 +54,8 @@ def gen_args():
     if args.functional == None and args.a_x == None and args.omega == None:
         raise ValueError('I need the functional name, such as -func pbe0; or functional parameters: a_x, omega, alpha, beta, such as -ax 0.25; -w 0.5 -al 0.5 -be 1.0')
     if args.spectraoutname == None:
-        args.spectraoutname = args.filename 
+        basename_with_ext = os.path.basename(args.filename)
+        args.spectraoutname = os.path.splitext(basename_with_ext)[0]
 
     return args
 

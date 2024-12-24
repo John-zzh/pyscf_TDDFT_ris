@@ -86,7 +86,7 @@ mkl2fch molecule.mkl molecule.fch
 and eveything else is the same as above.
 
 ## Plot UV-vis spectra and excited states analysis
-Two files will be dumped by this package:
+In the directory where you execute the `python` command, wwo files will be dumped by this package:
 
 1.  `<outname>_TDDFT_ris_eV_os_Multiwfn.txt`
 contains the excitation energy and oscillator strength of each excited state.
@@ -99,7 +99,7 @@ contains the excitation energy and oscillator strength of each excited state.
 4.96884 0.00056
 ```
 
-The firs line `5` measn 5 excited states, `1` means specify FWHN later in the Multiwfn. See http://sobereva.com/224 for instructions on how to use Multiwfn to plot UV-vis spectra.
+The firs line `5` measn 5 excited states, `1` means specify FWHN later in the Multiwfn. See http://sobereva.com/224 for instructions on how to use Multiwfn to plot UV-vis spectra. `<outname>` is specified by `-fout` argument, default is same as the input `.fch` file basename, e.g. `molecule.fch` input file results in `molecule_TDDFT_ris_eV_os_Multiwfn.txt`.
 
 
 2. `<outname>_TDDFT_ris_coeff_Multiwfn.txt` contains the coefficients of the excited states. See http://sobereva.com/377 for instructions for NTO analysis. 
