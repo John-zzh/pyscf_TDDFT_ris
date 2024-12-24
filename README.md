@@ -62,7 +62,7 @@ Alternatively, see other install options at [MOKIT installation guide](https://g
 
 The calculation requires a ground state calculation output, either Gaussian `.fch` file or PySCF `mf` object
 
-### use `.fch` file format as inpit
+### Always use the `.fch` file as the input
 Suppose you have finished a PBE0 DFT calculation with Gaussian and have a `molecule.chk` file, first convert it to  `molecule.fch` file:
 ```
 formchk molecule.chk molecule.fch
