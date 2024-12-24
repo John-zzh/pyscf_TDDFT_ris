@@ -52,9 +52,7 @@ def gen_args():
     if args.functional == None and args.a_x == None and args.omega == None:
         raise ValueError('I need the functional name, such as -func pbe0; or functional parameters: a_x, omega, alpha, beta, such as -ax 0.25; -w 0.5 -al 0.5 -be 1.0')
     if args.spectraoutname == None:
-        args.spectraoutname = args.filename + '-'
-    else:
-        args.spectraoutname = args.spectraoutname + '-'
+        args.spectraoutname = args.filename 
 
     return args
 
