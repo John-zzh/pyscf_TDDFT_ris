@@ -85,6 +85,50 @@ mkl2fch molecule.mkl molecule.fch
 ```
 and eveything else is the same as above.
 
+## Plot UV-vis spectra and excited states analysis
+Two files will be dumped by this package:
+
+1.  `<outname>_TDDFT_ris_eV_os_Multiwfn.txt`
+contains the excitation energy and oscillator strength of each excited state.
+```
+5 1
+2.90532 0.00012
+2.98337 1.37136
+3.88994 0.48243
+4.30989 0.03950
+4.96884 0.00056
+```
+
+The firs line `5` measn 5 excited states, `1` means specify FWHN later in the Multiwfn. See http://sobereva.com/224 for instructions on how to use Multiwfn to plot UV-vis spectra.
+
+
+2. `<outname>_TDDFT_ris_coeff_Multiwfn.txt` contains the coefficients of the excited states. See http://sobereva.com/377 for instructions for NTO analysis. 
+```
+ Excited State     1   1    2.9053 
+             76 -> 79              -0.65192
+             76 -> 80               0.23655
+
+ Excited State     2   1    2.9834 
+             77 -> 79               0.14594
+             78 -> 79              -0.69387
+
+ Excited State     3   1    3.8899 
+             77 -> 79               0.64074
+             78 -> 79               0.15514
+             78 -> 80               0.23957
+
+ Excited State     4   1    4.3099 
+             75 -> 79              -0.35288
+             77 -> 79              -0.19893
+             78 -> 80               0.57213
+
+ Excited State     5   1    4.9688 
+             76 -> 79              -0.26934
+             76 -> 80              -0.59789
+             76 -> 81               0.19308
+             76 -> 83               0.11664
+```
+The default print threshold is 0.05, which can be changed by the `-pt` argument.
 
 ## Command-Line Arguments
 
