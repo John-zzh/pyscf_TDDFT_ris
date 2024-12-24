@@ -34,7 +34,7 @@ However, if you need high performance, use my code :-)
 ## Install TDDFT-ris-pyscf
 First, clone this repository to your local machine:
 ```
-git clone git@github.com:John-zzh/TDDFT-ris-pyscf.git
+git clone git@github.com:John-zzh/pyscf_TDDFT_ris.git
 ```
  
 Then add the repo path to your `PYTHONPATH` environment by adding the following commands to your `~/.bash_profile` or `~/.bashrc` file:

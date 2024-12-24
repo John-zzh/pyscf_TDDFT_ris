@@ -196,13 +196,13 @@ def get_eri2c_eri3c(mol, auxmol, max_mem_mb, omega=0, single=True):
                 )
                 tt = time.time()
                 eri3c_slice = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
-                # print(f'    eri3c_slice time: {time.time() - tt:.2f} s')
+                print(f'    eri3c_slice time: {time.time() - tt:.2f} s')
                 # print('    eri3c_slice.shape', eri3c_slice.shape)
                 # print(f'    eri3c_slice mem: {eri3c_slice.nbytes / (1024 ** 2):.0f} MB')
-                # tt = time.time()
+                tt = time.time()
                 eri3c_slice = eri3c_slice.transpose(2, 1, 0).astype(dtype=dtype, order='C')
                 # eri3c_slice = eri3c_slice.astype(dtype=dtype, order='F')
-                # print(f'    eri3c_slice transpose time: {time.time() - tt:.2f} s')
+                print(f'    eri3c_slice transpose time: {time.time() - tt:.2f} s')
                 yield eri3c_slice
         return eri2c, eri3c_batch_generator
 
@@ -364,7 +364,10 @@ def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
         pre_T_pq = np.zeros((nauxbf, n_p, n_q), dtype=C_p.dtype) 
         aux_offset = 0  # Offset to track where to store results in T_pq
         
+        i = 0
         for eri3c_batch in eri3c():
+            print(f'batch {i}')
+            i += 1
             # Process each batch of eri3c
             batch_size = eri3c_batch.shape[0]
             pre_T_pq[aux_offset:aux_offset + batch_size, :, :] = get_pre_Tpq_one_batch(
