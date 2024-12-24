@@ -10,7 +10,7 @@ Note:
 
 (1) Software package TURBOMOLE7.7dev has already built-in TDDFT-ris, see [the TDDFT-ris+p plugin for Turbomole](https://github.com/John-zzh/TDDFT-ris)
 
-(2) Software package Amespv2.1dev has already built-in TDDFT-ris, see [Amesp](https://amesp.xyz/)
+(2) Software package Amespv2.1dev has already built-in TDDFT-ris, see [Amesp](https://www.amesp.xyz/)
 
 ## Theory
 In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris method [1,2]. This is method achieved by two steps:
@@ -23,7 +23,7 @@ $\alpha_A = \frac{\theta}{R_A^2}$
 
 Compared to traditional ab initio TDDFT, for excitation energy calculations of organic molecules, the TDDFT-ris method provides a nearly negligible deviation of just 0.06 eV. Moreover, it offers a significant computational advantage, being ~300 times faster. This represents a considerable improvement over the [simplified TDDFT (sTDDFT) method](https://github.com/grimme-lab/stda), which shows an energy deviation of 0.24 eV.
 
-Owing to the similar structure to ab initio TDDFT, the TDDFT-ris method can be readily integrated into most quantum chemistry packages with virtually no additional implementation effort. Software packages such as [TURBOMOLE7.7dev](https://www.turbomole.org/turbomole/release-notes-turbomole-7-7/) and [Amespv1.1dev](https://amesp.xyz/) have already built-in the TDDFT-ris method.
+Owing to the similar structure to ab initio TDDFT, the TDDFT-ris method can be readily integrated into most quantum chemistry packages with virtually no additional implementation effort. Software packages such as [TURBOMOLE7.7dev](https://www.turbomole.org/turbomole/release-notes-turbomole-7-7/) and [Amespv1.1dev](https://www.amesp.xyz/) have already built-in the TDDFT-ris method.
 
 [ORCA6.0](https://github.com/ORCAQuantumChemistry/CompoundScripts) supports TDDFT-ris calculation through compound script.
 
@@ -60,17 +60,29 @@ Alternatively, see other install options at [MOKIT installation guide](https://g
 
 The calculation requires a ground state calculation output, either Gaussian `.fch` file or PySCF `mf` object
 
-### Gaussian software:`.fch` file
-Suppose you have finished a PBE0 DFT calculation with Gaussian and have a `molecule.chk` file, you can run the TDDFT-ris calculation for 10 lowest excited states on 4 CPUs by executing the following commands:
+### use `.fch` file format as inpit
+Suppose you have finished a PBE0 DFT calculation with Gaussian and have a `molecule.chk` file, first convert it to  `molecule.fch` file:
 ```
 formchk molecule.chk molecule.fch
+```
+Then you can run the TDDFT-ris calculation for 10 lowest excited states on 4 CPUs with 8G RAM by:
+```
 conda activate ris-mokit-pyscf-py39
 export PYTHONPATH=absolue_path_to_ris_repo:$PYTHONPATH
 export MKL_NUM_THREADS=4
 export OMP_NUM_THREADS=4
 python absolue_path_to_ris_repo/main.py -f molecule.fch -func pbe0 -n 10 -M 8000
 ```
-NumPy provides major parallelization. 
+NumPy provides major parallelization. Set up other environment variables according to your needs.
+
+If you use other software packages, you can use MOKIT to convert the output to `.fch` file. See [MOKIT](https://gitlab.com/jxzou/mokit) for more details. For example, orca `.gbw` file firstly converted to `.mkl`, and then use MOKIT convert it to `.fch` file:
+```
+orca_2mkl molecule -mkl
+conda activate ris-mokit-pyscf-py39
+mkl2fch molecule.mkl molecule.fch
+```
+and eveything else is the same as above.
+
 
 ## Command-Line Arguments
 
