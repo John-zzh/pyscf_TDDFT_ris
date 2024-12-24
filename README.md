@@ -4,7 +4,7 @@
 # TDDFT-ris-pyscf (v1.0)
 This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV-vis absorption spectra. The TDDFT-ris calculation starts from a completed SCF calculation, typically a `.fch` or `.molden` file. Also, it can start from the PySCF `mf` object.
 
-Currently, it supports UKS/RKS, TDA/TDDFT, pure/hybrid/range-separated-hybrid functional. Not yet support implicit solvation method.
+Currently, it supports RKS-TDDFT, hybrid/range-separated-hybrid functional. Not yet support implicit solvation method.
 
 Note: 
 
@@ -84,7 +84,7 @@ The following arguments can be passed to the program via the command line:
 | `-f`                 | `str`       | `None`         | Input `.fch` filename (e.g., `molecule.fch`).                                  |
 | `-fout`              | `str`       | `None`         | Output file name for spectra results.                                          |
 | `-func`              | `str`       | `None`         | Functional name (e.g., `pbe0`).                                                |
-| `-ax`                | `float`     | `None`         | HF component in the hybrid functional.                                         |
+| `-ax`                | `float`     | `None`         | HF component in the hybrid functional. Needed when '-func' is not provided     |
 | `-w`                 | `float`     | `None`         | Screening factor in the range-separated functional.                            |
 | `-alpha`             | `float`     | `None`         | Alpha parameter in the range-separated functional.                             |
 | `-beta`              | `float`     | `None`         | Beta parameter in the range-separated functional.                              |
@@ -96,6 +96,7 @@ The following arguments can be passed to the program via the command line:
 | `-TDA`               | `bool`      | `False`        | Perform TDA calculation instead of TDDFT. **Deprecated for now**               |
 | `-n`                 | `int`       | `10`           | Number of excited states to solve.                                             |
 | `-t`                 | `float`     | `1e-3`         | Convergence tolerance in the Davidson diagonalization.                         |
+| `-GS`                | `bool`      | `False`        | Use Gram-Schmidt orthogonalization. Default uses non-orthogonalized Krylov subspace (nKs) method. |
 | `-i`                 | `int`       | `20`           | Maximum number of iterations in the Davidson diagonalization.                  |
 | `-pt`                | `float`     | `0.05`         | Threshold for printing the transition coefficients.                            |
 | `-spectra`           | `bool`      | `True`         | Print out the spectra file.                                                    |
@@ -150,20 +151,15 @@ Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculat
 The calculation generates a `TDDFT-ris_UV_spectra.txt` file. I provided a script, `examples/Gaussian_fch/spectra.py`, to plot the spectra through command line `$sh plot.sh`.
 
 
-Feel free to test out larger molecules (20-99 atoms) in the `xyz_files_EXTEST42` folder. You should expect an energy RMSE of 0.06 eV, and ~300 wall time speedup compared to the standard TDDFT calculation.
+Feel free to test out larger molecules (20-99 atoms) in the `xyz_files_EXTEST42` folder. You should expect an energy RMSE of 0.06 eV, and ~1000 wall time speedup compared to the standard TDDFT calculation.
 
 ## Bugs
-
-I expect many bugs because I have not tested the robustness. Because I do not have Gaussian software to generate the `.fch` file :-)
-I would appreciate it if any user provide error information.
-
+TDA codes are not opimized yet, do not use it. Anyway, TDDFT-ris is better for UV spectra.
 
 ## To do list
-
-1. Interface for other software packages that have not built-in the TDDFT-ris method, such as Qchem, NWChem, BDF.
-2. Uniformed output file to support NTO analysis.
-3. Assign certain elements with full default fitting basis, e.g. transition metals need full fitting basis
-4. Solvation method
+1. Assign certain elements with full default fitting basis, e.g. transition metals need full fitting basis
+2. TDA, UKS, pure functionals.
+3. Solvation model (not important for now)
 
 ## Acknowledgements
 Thank Dr. Zou (the developer of MOKIT) for powerful interface support. Thank gjj for the detailed guidance of MOKIT installaiton on MacOS system. Thank Dr. Zhang (the developer of Amesp) for cross validation with TDDFT-ris implementation. Thank Dr. Della Sala for the development of TDDFT-as prototype, and contribution to the development of the TDDFT-ris method [1, 2].
