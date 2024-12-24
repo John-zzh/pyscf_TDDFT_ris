@@ -14,10 +14,10 @@ Note:
 
 ## Theory
 In the context of ab initio linear response TDDFT, we have introduced the TDDFT-ris method [1,2]. This is method achieved by two steps:
-- approximate the two-electron integrals using resolution-of-the-identity technique (**RI**) with only one **$s$** type orbital per atom
+- approximate the two-electron integrals using resolution-of-the-identity technique (**RI**) with only one **$s$** type orbital per atom (an extra **$p$** type orbital for non-hydrogen atom can further improve the accuracy).
 - disable the exchange-correlation kernel. 
 
-The exponents $\alpha_A$ of the **$s$** type orbital centered on atom $A$ is related to the tabulated semi-empirical atomic radii $R_A$. Only one global parameter $\theta$ was fine-tuned across various hybrid exchange-correlation functional.
+The exponents $\alpha_A$ of the auxiliaty basis function centered on atom $A$ is related to the tabulated semi-empirical atomic radii $R_A$. Only one global parameter $\theta$ was fine-tuned across various hybrid exchange-correlation functional.
 
 $\alpha_A = \frac{\theta}{R_A^2}$
 
