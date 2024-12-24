@@ -25,7 +25,7 @@ An extra **$p$** type orbital for non-hydrogen atom can further improve the accu
 
 Compared to traditional ab initio TDDFT, for excitation energy calculations of organic molecules, the TDDFT-ris method provides a nearly negligible deviation of just 0.06 eV. Moreover, it offers a significant computational advantage, being ~300 times faster. This represents a considerable improvement over the [simplified TDDFT (sTDDFT) method](https://github.com/grimme-lab/stda), which shows an energy deviation of 0.24 eV.
 
-Owing to the similar structure to ab initio TDDFT, the TDDFT-ris method can be readily integrated into most quantum chemistry packages with virtually no additional implementation effort. Software packages such as [TURBOMOLE7.7dev](https://www.turbomole.org/turbomole/release-notes-turbomole-7-7/) and [Amespv1.1dev](https://www.amesp.xyz/) have already built-in the TDDFT-ris method.
+Owing to the similar structure to ab initio TDDFT, the TDDFT-ris method can be readily integrated into most quantum chemistry packages with virtually no additional implementation effort. Software packages such as [TURBOMOLE7.7dev](https://www.turbomole.org/turbomole/release-notes-turbomole-7-7/) and [Amespv2.1dev](https://www.amesp.xyz/) have already built-in the TDDFT-ris method.
 
 [ORCA6.0](https://github.com/ORCAQuantumChemistry/CompoundScripts) supports TDDFT-ris calculation through compound script.
 
