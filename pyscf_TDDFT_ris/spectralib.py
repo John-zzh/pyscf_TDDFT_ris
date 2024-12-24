@@ -2,19 +2,19 @@ from pyscf_TDDFT_ris import parameter
 import numpy as np
 
 def print_coeff(state, coeff_vec, sybmol, n_occ, n_vir, print_threshold):
-    # 筛选出符合条件的元素（向量化操作）
-    abs_coeff = np.abs(coeff_vec[state, :, :])  # 只取指定状态的矩阵
-    mask = abs_coeff >= print_threshold         # 筛选条件，返回布尔矩阵
 
-    # 获取符合条件的行（occ）和列（vir）的索引
+    abs_coeff = np.abs(coeff_vec[state, :, :])  
+    mask = abs_coeff >= print_threshold         
+
     occ_indices, vir_indices = np.where(mask)
 
-    # 获取对应的系数值
     coeff_values = coeff_vec[state, occ_indices, vir_indices]
 
-    # 打印结果
-    for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values):
-        print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
+    # # 打印结果
+    # for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values):
+    #     print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
+    results = [ f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}" for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values) ]
+    return results
 
 
 def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001):
@@ -83,6 +83,35 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
 
 
     if spectra == True:
+        if RKS:
+            print(f"print RKS transition coefficients larger than {print_threshold:.2e}")
+            print('index of HOMO:', n_occ)
+            print('index of LUMO:', n_occ+1)
+            n_state = X.shape[0]
+            X = X.reshape(n_state, n_occ, n_vir)
+            if isinstance(Y, np.ndarray):
+                Y = Y.reshape(n_state, n_occ, n_vir)
+
+            filename = name + '_transition_coefficient_for_Multiwfn.txt'
+            with open(filename, 'w') as f:
+                
+                for state in range(n_state):
+                    print(f" Excited State  {state+1:4d}:      Singlet-A      {eV[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=0.000")
+                    f.write(f" Excited State  {state+1:4d}   1    {oscillator_strength[state]:>.4f} \n")
+                    results = print_coeff(state, X, '->', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
+                    # print(*results, sep='\n')
+
+                    if isinstance(Y, np.ndarray):
+                        results += print_coeff(state, Y, '<-', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
+
+                    print(*results, sep='\n')
+                    f.write('\n'.join(results) + '\n\n')
+        else:
+            print('UKS transition coefficient not implemenetd yet')
+
+
+
+
 
         entry = [eV, nm, cm_1, oscillator_strength]
         data = np.zeros((eV.shape[0],len(entry)))
@@ -93,32 +122,12 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         for row in range(data.shape[0]):
             print(f'{data[row,0]:<8.3f} {data[row,1]:<8.0f} {data[row,2]:<8.0f} {data[row,3]:<8.8f}')
 
-
-        filename = name + '_UV_spectra.txt'
+        filename = name + '_eV_oscillator_strength_for_Multiwfn.txt'
         with open(filename, 'w') as f:
-            np.savetxt(f, data, fmt='%.5f', header='eV     nm      cm^-1        oscillator_strength')
+            np.savetxt(f, data[:,(0,3)], fmt='%.5f', header=f'{len(energies)} 1', comments='')
         print('spectra data written to', filename)
 
         print('print_threshold:', print_threshold)
-
-
-
-        if RKS:
-            print(f"print RKS transition coefficients larger than {print_threshold:.2e}")
-            print('index of HOMO:', n_occ)
-            print('index of LUMO:', n_occ+1)
-            n_state = X.shape[0]
-            X = X.reshape(n_state, n_occ, n_vir)
-            if isinstance(Y, np.ndarray):
-                Y = Y.reshape(n_state, n_occ, n_vir)
-            for state in range(n_state):
-                print(f" Excited State  {state+1:4d}:      SingletXXXX   \
-                    {eV[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=XXXXX")
-                print_coeff(state, X, '->', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
-                if isinstance(Y, np.ndarray):
-                    print_coeff(state, Y, '<-', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
-        else:
-            print('UKS transition coefficient not implemenetd yet')
 
     return oscillator_strength
 
