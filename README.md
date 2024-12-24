@@ -128,7 +128,8 @@ The firs line `5` measn 5 excited states, `1` means specify FWHN later in the Mu
              76 -> 81               0.19308
              76 -> 83               0.11664
 ```
-The default print threshold is 0.05, which can be changed by the `-pt` argument.
+The default print threshold is 0.05, which can be changed by the `-pt` argument. For NTO analysis purpose, 
+set `-pt` to 0.0001 is recommended.
 
 ## Command-Line Arguments
 
