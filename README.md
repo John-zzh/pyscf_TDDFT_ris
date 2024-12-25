@@ -46,7 +46,7 @@ export PYTHONPATH=absolute_path_to_ris_repo:$PYTHONPATH
 
 
 ### install MOKIT
-[MOKIT](https://gitlab.com/jxzou/mokit) is used to read the `.fch` file to read the ground state information. Install MOKIT with these commands:
+[MOKIT](https://gitlab.com/jxzou/mokit) is used to read the `.fch` file and load the ground state information. Install MOKIT with these commands:
 
 ```
 conda create -n ris-mokit-pyscf-py39 python=3.9
