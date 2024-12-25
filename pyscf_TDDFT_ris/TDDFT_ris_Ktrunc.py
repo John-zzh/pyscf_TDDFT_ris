@@ -927,13 +927,28 @@ class TDDFT_ris(object):
             XmY = X - Y
             
             ApB_XpY = hdiag_MVP(XpY) 
+            tt = time.time()
             ApB_XpY += 4*iajb_MVP(XpY) 
+            print(f'    iajb_MVP time {time.time() - tt:.2f}  seconds')
+            tt = time.time()
+
             ApB_XpY[:,n_occ-rest_occ:,:rest_vir] -= a_x*ijab_MVP(XpY[:,n_occ-rest_occ:,:rest_vir]) 
+            print(f'    ijab_MVP X+Y time {time.time() - tt:.2f}  seconds')
+            tt = time.time()
+
             ApB_XpY[:,n_occ-rest_occ:,:rest_vir] -= a_x*ibja_MVP(XpY[:,n_occ-rest_occ:,:rest_vir])
+            print(f'    ibja_MVP X+Y time {time.time() - tt:.2f}  seconds')
+            tt = time.time()
 
             AmB_XmY = hdiag_MVP(XmY) 
             AmB_XmY[:,n_occ-rest_occ:,:rest_vir] -= a_x*ijab_MVP(XmY[:,n_occ-rest_occ:,:rest_vir]) 
+            print(f'    ijab_MVP X-Y time {time.time() - tt:.2f}  seconds')
+            tt = time.time()
+
+
             AmB_XmY[:,n_occ-rest_occ:,:rest_vir] += a_x*ibja_MVP(XmY[:,n_occ-rest_occ:,:rest_vir])
+            print(f'    ibja_MVP X-Y time {time.time() - tt:.2f}  seconds')
+            tt = time.time()
 
             ''' (A+B)(X+Y) = AX + BY + AY + BX   (1)
                 (A-B)(X-Y) = AX + BY - AY - BX   (2)
