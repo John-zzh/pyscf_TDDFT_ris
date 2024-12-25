@@ -1,1 +1,0 @@
-python3 ../../spectra.py -n 20 -f tuancu6ris.txt ***REMOVED*** -ftype lsqc-TDDFT TDDFT-ris -format pdf -name moleculename -nm true
