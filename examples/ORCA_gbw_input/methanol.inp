@@ -1,0 +1,5 @@
+! RKS PBE0 def2-TZVP 
+
+%maxcore 600
+
+*xyzfile -2 1 methanol.xyz

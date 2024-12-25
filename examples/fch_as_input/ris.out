@@ -1,0 +1,178 @@
+args.nroots 10
+Woring directory: /home/jojo/ris/pyscf_TDDFT_ris/examples/fch_as_input
+nbf = 86
+nif = 86
+mo_coeff.shape (86, 86)
+mo_energy.shape (86,)
+Restricted Kohn-Sham
+functional:  pbe0
+get_mf_from_fch_time: 0.44 seconds
+This job can use: 24CPUs
+use new code
+use different J and K fitting basis: J with sp and K with s
+self.nroots 10
+use single precision? True
+loading default XC functional paramters from parameter.py
+use hybrid XC functional
+self.a_x 0.25
+cartesian or spherical electron integral = _sph
+n_occ = 9
+n_vir = 77
+ MO truncation in K with threshold 40 eV above HOMO and below LUMO
+rest_occ = 7
+rest_vir = 22
+==================== RIJ ====================
+Asigning minimal auxiliary basis set: sp
+The exponent alpha: 0.2/R^2 
+   auxmol.cart = False
+    Full eri3c in shape (np.int64(86), np.int64(86), np.int64(12)), will take 1 MB
+    max_mem_for_one_batch 50.0
+    small 3c2e, just incore
+    pre_T_pq time: 0.0 seconds
+pre_T_pq_to_Tpq one batch time 0.0 seconds
+T_ia_J time 0.1 seconds
+==================== RIK ====================
+Asigning minimal auxiliary basis set: s
+The exponent alpha: 0.2/R^2 
+   auxmol.cart = False
+    Full eri3c in shape (np.int64(86), np.int64(86), np.int64(6)), will take 0 MB
+    max_mem_for_one_batch 50.0
+    small 3c2e, just incore
+    pre_T_pq time: 0.0 seconds
+pre_T_pq_to_Tpq one batch time 0.0 seconds
+    pre_T_pq time: 0.0 seconds
+pre_T_pq_to_Tpq one batch time 0.0 seconds
+    pre_T_pq time: 0.0 seconds
+pre_T_pq_to_Tpq one batch time 0.0 seconds
+T_ia_K T_ij_K T_ab_K time 0.0 seconds
+======= TDDFT Eigen Solver Statrs =======
+size of A matrix = 693
+Using non-orthogonalized Krylov subspace (nKs) method.
+ 
+        Furche, Filipp, Brandon T. Krull, Brian D. Nguyen, and Jake Kwon. 
+        Accelerating molecular property calculations with nonorthonormal Krylov space methods.
+        The Journal of Chemical Physics 144, no. 17 (2016).
+        
+    iajb_MVP time 0.00  seconds
+    ijab_MVP X+Y time 0.00  seconds
+    ibja_MVP X+Y time 0.00  seconds
+    ijab_MVP X-Y time 0.00  seconds
+    ibja_MVP X-Y time 0.00  seconds
+iter: 1    max|R|: 6.76e-02   new_vectors: 18  MVP: 0.0 seconds
+    iajb_MVP time 0.00  seconds
+    ijab_MVP X+Y time 0.00  seconds
+    ibja_MVP X+Y time 0.00  seconds
+    ijab_MVP X-Y time 0.00  seconds
+    ibja_MVP X-Y time 0.00  seconds
+iter: 2    max|R|: 1.53e-02   new_vectors: 10  MVP: 0.0 seconds
+    iajb_MVP time 0.00  seconds
+    ijab_MVP X+Y time 0.00  seconds
+    ibja_MVP X+Y time 0.00  seconds
+    ijab_MVP X-Y time 0.00  seconds
+    ibja_MVP X-Y time 0.00  seconds
+iter: 3    max|R|: 2.25e-03   new_vectors: 10  MVP: 0.0 seconds
+    iajb_MVP time 0.00  seconds
+    ijab_MVP X+Y time 0.00  seconds
+    ibja_MVP X+Y time 0.00  seconds
+    ijab_MVP X-Y time 0.00  seconds
+    ibja_MVP X-Y time 0.00  seconds
+iter: 4    max|R|: 3.98e-04   new_vectors: 7  MVP: 0.0 seconds
+Finished in 4 steps, 0.25 seconds
+final subspace = 45
+max_norm = 3.98e-04
+MVcost     0.0078s 3.13%
+fill_holder_cost 0.0007s 0.27%
+subgencost 0.0014s 0.55%
+subcost    0.2240s 89.50%
+full_cost  0.0009s 0.37%
+======= TDDFT Eigen Solver Done =======
+check norm of X^TX - Y^YY - I = 3.12e-09
+print RKS transition coefficients larger than 5.00e-02
+index of HOMO: 9
+index of LUMO: 10
+ Excited State     1:      Singlet-A      6.8132 eV  182.10 nm  f=0.0000   <S**2>=0.000
+              9 -> 10              -0.69783
+              9 -> 11               0.09665
+ Excited State     2:      Singlet-A      8.4846 eV  146.23 nm  f=0.0543   <S**2>=0.000
+              9 -> 10              -0.09871
+              9 -> 11              -0.69589
+ Excited State     3:      Singlet-A      8.7278 eV  142.16 nm  f=0.0025   <S**2>=0.000
+              8 -> 10              -0.70196
+ Excited State     4:      Singlet-A      9.5651 eV  129.71 nm  f=0.0074   <S**2>=0.000
+              9 -> 12              -0.63582
+              9 -> 14              -0.29823
+ Excited State     5:      Singlet-A      9.8849 eV  125.51 nm  f=0.0353   <S**2>=0.000
+              8 -> 11               0.25092
+              8 -> 12               0.06987
+              9 -> 13               0.65431
+ Excited State     6:      Singlet-A      9.9501 eV  124.69 nm  f=0.0152   <S**2>=0.000
+              8 -> 13              -0.05045
+              9 -> 12              -0.30240
+              9 -> 14               0.63201
+ Excited State     7:      Singlet-A      10.1217 eV  122.58 nm  f=0.1471   <S**2>=0.000
+              7 -> 10              -0.06919
+              8 -> 11               0.64854
+              9 -> 13              -0.24806
+              9 -> 16               0.05051
+ Excited State     8:      Singlet-A      11.1917 eV  110.86 nm  f=0.0164   <S**2>=0.000
+              7 -> 10              -0.63113
+              7 -> 11               0.05353
+              8 -> 11              -0.05591
+              8 -> 12              -0.15739
+              8 -> 14              -0.25573
+ Excited State     9:      Singlet-A      11.3313 eV  109.49 nm  f=0.0576   <S**2>=0.000
+              6 -> 10               0.05594
+              8 -> 13              -0.69817
+ Excited State    10:      Singlet-A      11.4564 eV  108.30 nm  f=0.1518   <S**2>=0.000
+              7 -> 10               0.25550
+              7 -> 11               0.06271
+              8 -> 11               0.05185
+              8 -> 12              -0.59015
+              8 -> 14              -0.26537
+              9 -> 13               0.05556
+transition coefficient data also written to methanol_TDDFT_ris_coeff_Multiwfn.txt
+================================================
+eV       nm       cm^-1    oscillator strength
+6.813    182      54952    0.00000087
+8.485    146      68433    0.05431951
+8.728    142      70394    0.00247605
+9.565    130      77147    0.00736009
+9.885    126      79727    0.03527832
+9.950    125      80253    0.01521903
+10.122   123      81637    0.14714788
+11.192   111      90267    0.01642837
+11.331   109      91393    0.05758909
+11.456   108      92402    0.15177516
+spectra data also written to methanol_TDDFT_ris_eV_os_Multiwfn.txt
+total ris time: 0.84 seconds
+
+    Please cite the TDDFT-ris method:
+
+        1.  Zhou, Zehao, Fabio Della Sala, and Shane M. Parker. 
+            Minimal auxiliary basis set approach for the electronic excitation spectra 
+            of organic molecules. The Journal of Physical Chemistry Letters 
+            14, no. 7 (2023): 1968-1976.
+            (must cite)
+
+        2.  Zhou, Zehao, and Shane M. Parker. 
+            Converging Time-Dependent Density Functional Theory Calculations in Five Iterations 
+            with Minimal Auxiliary Preconditioning. Journal of Chemical Theory and Computation 
+            20, no. 15 (2024): 6738-6746. 
+            (for efficient orbital truncation technique)
+
+        2.  Giannone, Giulia, and Fabio Della Sala. 
+            Minimal auxiliary basis set for time-dependent density functional theory and 
+            comparison with tight-binding approximations: Application to silver nanoparticles.
+            The Journal of Chemical Physics 153, no. 8 (2020).
+            (The idea of TDDFT-ris originates from TDDFT-as)
+
+    And cite the pyscf-TDDFT-ris package:
+
+        1. Zehao Zhou, pyscf-TDDFT-ris, (https://github.com/John-zzh/pyscf_TDDFT_ris)
+
+        2. Jingxiang Zou, Molecular Orbital Kit (MOKIT), (https://gitlab.com/jxzou/mokit)
+
+        3. PySCF: the Python-based simulations of chemistry framework, 
+           Q. Sun, et. al., and G. K.-L. Chan, WIREs Comput. Mol. Sci. 8, e1340 (2018) 
+           (https://pyscf.org/about.html)
+    
