@@ -39,9 +39,9 @@ git clone git@github.com:John-zzh/pyscf_TDDFT_ris.git
  
 Then add the repo path to your `PYTHONPATH` environment by adding the following commands to your `~/.bash_profile` or `~/.bashrc` file:
 ```
-export PYTHONPATH=absolue_path_to_ris_repo:$PYTHONPATH
+export PYTHONPATH=absolute_path_to_ris_repo:$PYTHONPATH
 ```
-`absolue_path_to_ris_repo` should be replaced with the absolute path to the cloned repository directory, where you can see the `README.md` file. 
+`absolute_path_to_ris_repo` should be replaced with the absolute path to the cloned repository directory, where you can see the `README.md` file. 
 
 
 
