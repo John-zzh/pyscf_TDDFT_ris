@@ -166,7 +166,7 @@ Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculat
 ```
     import numpy as np
     from pyscf import gto,  dft
-    from pyscf_TDDFT_ris import TDDFT_ris
+    from pyscf_TDDFT_ris import TDDFT_ris_Ktrunc as TDDFT_ris
 
     mol = gto.Mole()
     mol.verbose = 3
@@ -201,9 +201,6 @@ Suppose you use PySCF to build a `mf` object, you can run the TDDFT-ris calculat
     ''' TDA-ris calculation '''
     energies, X, oscillator_strength = td.kernel_TDA() 
 ```
-
-The calculation generates a `***REMOVED***` file. I provided a script, `examples/Gaussian_fch/spectra.py`, to plot the spectra through command line `$sh plot.sh`.
-
 
 Feel free to test out larger molecules (20-99 atoms) in the `xyz_files_EXTEST42` folder. You should expect an energy RMSE of 0.06 eV, and ~1000 wall time speedup compared to the standard TDDFT calculation.
 
