@@ -151,12 +151,10 @@ The following arguments can be passed to the program via the command line:
 | `-Ktrunc`            | `float`     | `40`           | Truncation threshold for MO in K, in eV.                                       |
 | `-TDA`               | `bool`      | `False`        | Perform TDA calculation instead of TDDFT. **Deprecated for now**               |
 | `-n`                 | `int`       | `10`           | Number of excited states to solve.                                             |
-| `-t`                 | `float`     | `1e-3`         | Convergence tolerance in the Davidson diagonalization.                         |
-| `-GS`                | `bool`      | `False`        | Use Gram-Schmidt orthogonalization. Default uses non-orthogonalized Krylov subspace (nKs) method. |
+| `-t`                 | `float`     | `1e-3`         | Convergence tolerance in the Davidson diagonalization. 1e-3 is enough, ris is a semi-emprical method                        |
+| `-GS`                | `bool`      | `False`        | Use Gram-Schmidt orthogonalization. Default uses non-orthogonalized Krylov subspace (nKs) method. set to `True` if any convergence problem|
 | `-i`                 | `int`       | `20`           | Maximum number of iterations in the Davidson diagonalization.                  |
-| `-pt`                | `float`     | `0.05`         | Threshold for printing the transition coefficients.                            |
-| `-spectra`           | `bool`      | `True`         | Print out the spectra file.                                                    |
-| `-specw`             | `float`     | `10.0`         | Spectra window (in eV).                                                        |
+| `-pt`                | `float`     | `0.05`         | Printing threshold for the transition coefficients.                            |
 | `-single`            | `bool`      | `True`         | Use single precision for calculations.                                         |
 
 
