@@ -1,4 +1,4 @@
-from pyscf import gto, lib, dft
+from pyscf import gto, lib, dft, df
 import scipy
 import numpy as np
 import multiprocessing as mp
@@ -157,14 +157,18 @@ def get_eri2c_eri3c(mol, auxmol, max_mem_mb, omega=0, single=True):
 
     ''' eri2c is samll enough, just do it incore''' 
     eri2c = auxmol.intor('int2c2e' + tag)
-    eri2c = eri2c.astype(dtype=dtype, order='C')
+    eri2c = eri2c.astype(dtype=np.float64, order='C')
+
+    # tt = time.time()
+    # lower = np.linalg.cholesky(math_helper.matrix_power(eri2c,-1,epsilon=1e-6))
+    # print('   trial eri2c cholesky time =', time.time() - tt, 'seconds')
 
     pmol = mol + auxmol
     pmol.cart = mol.cart
 
     '''for eri3c, if it is too large, then we need to compute in batches and return a generator '''
     full_eri3c_mem = nbf * nbf * nauxbf * 8 / (1024 ** 2)
-    print(f'    Full eri3c in shape {nbf, nbf, nauxbf}, will take {full_eri3c_mem:.0f} MB')
+    print(f'    Full eri3c in shape {int(nbf), int(nbf), int(nauxbf)}, will take {full_eri3c_mem:.0f} MB')
 
     max_mem_for_one_batch = max_mem_mb / 2
     print('    max_mem_for_one_batch', max_mem_for_one_batch)
@@ -860,8 +864,32 @@ class TDDFT_ris(object):
         
         eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
         # print_memory_usage('after RIJ eri3c generated')
-        lower_inv_eri2c_J = np.linalg.cholesky(np.linalg.inv(eri2c_J))
+        # lower_inv_eri2c_J = np.linalg.cholesky(np.linalg.inv(eri2c_J))
+        # lower_inv_eri2c_J = np.linalg.cholesky(math_helper.matrix_power(eri2c_J,-1,epsilon=1e-6))
+        lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J,-0.5,epsilon=1e-6)
 
+
+
+
+
+        # '''debug compare efficienty with cholesky_eri'''
+        # int3c_cholesky_eri = df.incore.cholesky_eri(mol=mol, auxmol=auxmol_J, aosym = 's1')
+        # nbf = n_occ +  n_vir
+        # int3c_cholesky_eri = int3c_cholesky_eri.reshape(-1,nbf,nbf)
+        # print('int3c_cholesky_eri.shape', int3c_cholesky_eri.shape)
+        # # print('int3c_cholesky_eri.flags', int3c_cholesky_eri.flags)
+
+        # corret_eri3c = np.einsum('Quv,QP->Puv', int3c_cholesky_eri, math_helper.matrix_power(eri2c_J,1) )
+        # print('corret_eri3c_L.shape', corret_eri3c.shape)
+        # # print('corret_eri3c_L.flags', corret_eri3c_L.flags)       
+
+
+        # print('########## check equal?##########')
+        
+        # # 
+        # print(np.linalg.norm(eri3c_J - corret_eri3c ))  
+        # assert False
+       
         T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
         tt = time.time()
@@ -890,7 +918,12 @@ class TDDFT_ris(object):
                                                 single=single,
                                                 max_mem_mb=max_mem_mb)
 
-        lower_inv_eri2c_K = np.linalg.cholesky(np.linalg.inv(eri2c_K))
+        # lower_inv_eri2c_K = np.linalg.cholesky(np.linalg.inv(eri2c_K))
+        # lower_inv_eri2c_K = np.linalg.cholesky(math_helper.matrix_power(eri2c_K,-1,epsilon=1e-6))
+        lower_inv_eri2c_K = math_helper.matrix_power(eri2c_K,-0.5,epsilon=1e-6)
+
+
+        
 
         T_ia_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_vir_Ktrunc)
         T_ij_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_occ_Ktrunc)

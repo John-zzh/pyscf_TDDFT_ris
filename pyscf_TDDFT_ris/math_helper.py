@@ -79,11 +79,21 @@ def cond_number(A):
     cond = max(s)/min(s)
     return cond
 
-def matrix_power(S,a):
+def matrix_power(S,a, epsilon=None):
     '''X == S^a'''
     s,ket = np.linalg.eigh(S)
+    # s = s**a
+    if epsilon:
+        valid_indices = s >= epsilon
+        if len(valid_indices) != len(s):
+            print(f'warning!!! truncating matrix during matrix power {a}: {len(valid_indices)} vs {len(s)}')
+        s = s[valid_indices]
+        ket = ket[:, valid_indices]
+    
     s = s**a
+    
     X = np.dot(ket*s,ket.T)
+
     return X
 
 def copy_array(A):
