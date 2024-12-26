@@ -45,11 +45,14 @@ def get_auxmol(mol, theta=0.2, fitting_basis='s'):
     parse_arg = False 
     turns off PySCF built-in parsing function
     '''
+    tt = time.time()
     auxmol = gto.M(atom=mol.atom, 
+                    basis=mol.basis,
                     parse_arg = False, 
                     spin=mol.spin, 
                     charge=mol.charge,
                     cart=mol.cart)
+    # print(f'auxmol build time = {time.time()-tt:.1f} seconds')
     auxmol_basis_keys = mol._basis.keys()
 
     '''
@@ -366,7 +369,7 @@ def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
         
         i = 0
         for eri3c_batch in eri3c():
-            print(f'batch {i}')
+            print(f'        batch {i} done')
             i += 1
             # Process each batch of eri3c
             batch_size = eri3c_batch.shape[0]
