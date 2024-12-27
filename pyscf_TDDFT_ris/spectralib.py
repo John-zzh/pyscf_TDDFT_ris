@@ -1,6 +1,34 @@
 from pyscf_TDDFT_ris import parameter
 import numpy as np
 
+
+
+# from pyscf import gto, scf
+
+# # 构建分子
+# mol = gto.Mole()
+# mol.build(
+#     atom='H 0 0 0; F 0 0 1.1',
+#     basis='sto-3g'
+# )
+
+# # 获取位置和动量积分
+# r_integrals = mol.intor('int1e_r', comp=3)  # x, y, z
+# p_integrals = mol.intor('int1e_ipovlp', comp=3)  # px, py, pz
+
+# # 磁偶极矩分量 (m_x, m_y, m_z)
+# m_x = 0.5j * (r_integrals[1] @ p_integrals[2] - r_integrals[2] @ p_integrals[1])
+# m_y = 0.5j * (r_integrals[2] @ p_integrals[0] - r_integrals[0] @ p_integrals[2])
+# m_z = 0.5j * (r_integrals[0] @ p_integrals[1] - r_integrals[1] @ p_integrals[0])
+
+# # 打印结果
+# print("Magnetic dipole transition moment components:")
+# print(f"m_x: {m_x}")
+# print(f"m_y: {m_y}")
+# print(f"m_z: {m_z}")
+
+
+
 def print_coeff(state, coeff_vec, sybmol, n_occ, n_vir, print_threshold):
 
     abs_coeff = np.abs(coeff_vec[state, :, :])  
@@ -16,8 +44,13 @@ def print_coeff(state, coeff_vec, sybmol, n_occ, n_vir, print_threshold):
     results = [ f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}" for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values) ]
     return results
 
+def _charge_center(mol):
+    charges = mol.atom_charges()
+    coords  = mol.atom_coords()
+    return np.einsum('z,zr->r', charges, coords)/charges.sum()
 
-def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001):
+
+def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001, mdpol=None):
     '''
     E = hν
     c = λ·ν
@@ -64,23 +97,26 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
     nm = 1240.7011/eV
 
     # hartree = energies/parameter.Hartree_to_eV
-    # print('P.shape:', P.shape)
-    # print('transition_vector.shape:', transition_vector.shape)
+    print('P.shape:', P.shape)
+    print('transition_vector.shape:', transition_vector.shape)
 
-    trans_dipole_moment = np.dot(transition_vector, P.T)**2
-
+    trans_dipole_moment = -transition_vector @ P.T
+    print('trans_dipole_moment')
+    print(trans_dipole_moment)
     if RKS:
-        trans_dipole_moment *= 2
 
-    '''
-    2* because alpha and beta spin
-    '''
-    oscillator_strength = 2/3 * energies * np.sum(trans_dipole_moment, axis=1)
+        '''
+        2* because alpha and beta spin
+        '''
+        oscillator_strength = 2/3 * energies * np.sum(2 * trans_dipole_moment**2, axis=1)
 
-    '''
-    eV, nm, oscillator_strength
-    '''
 
+    trans_magnetic_moment = -(X*2**0.5 - Y*2**0.5) @ mdpol.T 
+    print('trans_magnetic_moment')
+    print(trans_magnetic_moment)
+    rotatory_strength = 500*np.sum(2*trans_dipole_moment * trans_magnetic_moment, axis=1)/2
+    print('rotatory_strength:')
+    print(rotatory_strength)
 
     if spectra == True:
         if RKS:
@@ -107,7 +143,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
 
                     print(*results, sep='\n')
                     f.write('\n'.join(results) + '\n\n')
-            print('transition coefficient data also written to', filename)
+            print('transition coefficient data written to', filename)
         else:
             print('UKS transition coefficient not implemenetd yet')
 
@@ -123,8 +159,13 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         filename = name + '_eV_os_Multiwfn.txt'
         with open(filename, 'w') as f:
             np.savetxt(f, data[:,(0,3)], fmt='%.5f', header=f'{len(energies)} 1', comments='')
-        print('spectra data also written to', filename)
+        print('eV Oscillator strength spectra data written to', filename)
 
+        filename = name + '_eV_rs_Multiwfn.txt'
+        with open(filename, 'w') as f:
+            new_rs_data = np.hstack((data[:,0].reshape(-1,1), rotatory_strength.reshape(-1,1)))
+            np.savetxt(f, new_rs_data, fmt='%.5f', header=f'{len(energies)} 1', comments='')
+        print('eV Rotatory strength spectra data written to', filename)
     return oscillator_strength
 
 

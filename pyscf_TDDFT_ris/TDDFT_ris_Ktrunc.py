@@ -1452,7 +1452,7 @@ class TDDFT_ris(object):
 
     #     return TDA_vind, TDDFT_vind
 
-    def get_P(self, int_r, mo_coeff, mo_occ):
+    def get_inter_contract_C(self, int_tensor, mo_coeff, mo_occ):
         '''
         transition dipole
         mol: mol obj
@@ -1461,13 +1461,13 @@ class TDDFT_ris(object):
         orbo = mo_coeff[:, occidx]
         orbv = mo_coeff[:,~occidx]
 
-        P = einsum("xpq,pi,qa->xia", int_r, orbo, orbv.conj())
+        P = einsum("xpq,pi,qa->xia", int_tensor, orbo, orbv.conj())
         P = P.reshape(3,-1)
         return P
 
     def get_RKS_P(self):
         '''
-        transition dipole P
+        transition dipole u
         '''
         tag = self.eri_tag
         int_r = self.mol.intor_symmetric('int1e_r'+tag)
@@ -1475,9 +1475,24 @@ class TDDFT_ris(object):
         mo_occ = self.mf.mo_occ
         mo_coeff = self.mf.mo_coeff
 
-        P = self.get_P(int_r=int_r, mo_coeff=mo_coeff, mo_occ=mo_occ)
+        P = self.get_inter_contract_C(int_tensor=int_r, mo_coeff=mo_coeff, mo_occ=mo_occ)
         # P = P.reshape(-1,3)
         return P
+
+    def get_RKS_mdpol(self):
+        '''
+        magnatic dipole m
+        '''
+        tag = self.eri_tag
+        # int_rxp = self.mol.intor_symmetric('int1e_cg_irxp'+tag)
+        int_rxp = self.mol.intor('int1e_cg_irxp', comp=3, hermi=2)
+        # int_rxp = int_r.astype(dtype=np.float32 if self.single else np.float64)
+        mo_occ = self.mf.mo_occ
+        mo_coeff = self.mf.mo_coeff
+
+        mdpol = self.get_inter_contract_C(int_tensor=int_rxp, mo_coeff=mo_coeff, mo_occ=mo_occ)
+        # P = P.reshape(-1,3)
+        return mdpol
 
     def get_UKS_P(self):
         '''
@@ -1491,8 +1506,8 @@ class TDDFT_ris(object):
         mo_occ = self.mf.mo_occ
         mo_coeff = self.mf.mo_coeff
 
-        P_alpha = self.get_P(int_r=int_r, mo_coeff=mo_coeff[0], mo_occ=mo_occ[0])
-        P_beta = self.get_P(int_r=int_r, mo_coeff=mo_coeff[1], mo_occ=mo_occ[1])
+        P_alpha = self.get_inter_contract_C(int_r=int_r, mo_coeff=mo_coeff[0], mo_occ=mo_occ[0])
+        P_beta = self.get_inter_contract_C(int_r=int_r, mo_coeff=mo_coeff[1], mo_occ=mo_occ[1])
         P = np.vstack((P_alpha, P_beta))
         return P
 
@@ -1616,13 +1631,13 @@ class TDDFT_ris(object):
         #         return U1, U2
         # else:
         #     name = 'TDDFT-ris'
-            
     def kernel_TDDFT(self):     
         # math_helper.show_memory_info('At the beginning')
         if self.a_x != 0:
             '''hybrid TDDFT'''
             if self.RKS:
                 P = self.get_RKS_P()
+                mdpol = self.get_RKS_mdpol()
                 TDDFT_hybrid_MVP, hdiag = self.gen_RKS_TDDFT_hybrid_MVP()
 
             elif self.UKS:
@@ -1630,17 +1645,35 @@ class TDDFT_ris(object):
                 TDDFT_hybrid_MVP, hdiag = self.get_UKS_TDDFT_MVP()
             # math_helper.show_memory_info('After get_TDDFT_MVP')
             
-            energies, X, Y = eigen_solver.Davidson_Casida(TDDFT_hybrid_MVP, hdiag,
+
+            # ''' debug '''
+            # from pyscf import tddft
+            # TDDFT_obj = tddft.TDDFT(self.mf)
+            # TDDFT_vind, Hdiag = TDDFT_obj.gen_vind(self.mf)
+            # def TDDFT_MVP(X, Y):
+            #     '''
+            #     return AX + BY and AY + BX'''
+            #     XY = np.hstack((X,Y))
+            #     U = TDDFT_vind(XY)
+            #     A_size = U.shape[1]//2
+            #     U1 = U[:,:A_size]
+            #     U2 = -U[:,A_size:]
+            #     return U1, U2
+
+            # energies, X, Y = eigen_solver.Davidson_Casida(matrix_vector_product=TDDFT_MVP, hdiag=hdiag,
+            #                                                 N_states=self.nroots,
+            #                                                 conv_tol=self.conv_tol,
+            #                                                 max_iter=self.max_iter,
+            #                                                 GS=self.GS,
+            #                                                 single=False)
+
+
+            energies, X, Y = eigen_solver.Davidson_Casida(matrix_vector_product=TDDFT_hybrid_MVP, hdiag=hdiag,
                                                             N_states=self.nroots,
                                                             conv_tol=self.conv_tol,
                                                             max_iter=self.max_iter,
                                                             GS=self.GS,
                                                             single=self.single)
-            # energies, X, Y = eigen_solver.nKs_Casida(TDDFT_hybrid_MVP, hdiag,
-            #                                                 N_states=self.nroots,
-            #                                                 conv_tol=self.conv_tol,
-            #                                                 max_iter=self.max_iter,
-            #                                                 single=self.single)
 
         elif self.a_x == 0:
             '''pure TDDFT'''
@@ -1669,10 +1702,11 @@ class TDDFT_ris(object):
 
     
         oscillator_strength = spectralib.get_spectra(energies=energies, 
-                                                    transition_vector= X+Y, 
-                                                    X = X/(2**0.5),
-                                                    Y = Y/(2**0.5),
+                                                    transition_vector=X+Y, 
+                                                    X=X/(2**0.5),
+                                                    Y=Y/(2**0.5),
                                                     P=P, 
+                                                    mdpol=mdpol,
                                                     name=self.out_name+'_TDDFT_ris', 
                                                     spectra=self.spectra,
                                                     RKS=self.RKS,
