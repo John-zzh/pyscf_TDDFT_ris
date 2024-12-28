@@ -219,7 +219,7 @@ def getImage(path, zoom=args.zoom):
 legen_dict={}
 legen_dict['TDDFT'] = 'TDDFT'
 legen_dict['sTDDFT'] = 'sTDDFT'
-legen_dict['***REMOVED***'] = 'TDDFT-ris'
+legen_dict['TDDFT-ris_UV_spectra.txt'] = 'TDDFT-ris'
 legen_dict['TDDFT-sp'] = 'TDDFT-risp'
 
 def overlap_plot():
