@@ -867,7 +867,7 @@ class TDDFT_ris(object):
         # lower_inv_eri2c_J = np.linalg.cholesky(np.linalg.inv(eri2c_J))
         # lower_inv_eri2c_J = np.linalg.cholesky(math_helper.matrix_power(eri2c_J,-1,epsilon=1e-6))
         lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J,-0.5,epsilon=1e-6)
-
+        lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=np.float32 if single else np.float64)
 
 
 
@@ -921,6 +921,7 @@ class TDDFT_ris(object):
         # lower_inv_eri2c_K = np.linalg.cholesky(np.linalg.inv(eri2c_K))
         # lower_inv_eri2c_K = np.linalg.cholesky(math_helper.matrix_power(eri2c_K,-1,epsilon=1e-6))
         lower_inv_eri2c_K = math_helper.matrix_power(eri2c_K,-0.5,epsilon=1e-6)
+        lower_inv_eri2c_K = lower_inv_eri2c_K.astype(dtype=np.float32 if single else np.float64)
 
 
         
