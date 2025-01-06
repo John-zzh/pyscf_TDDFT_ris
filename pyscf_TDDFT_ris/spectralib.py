@@ -119,6 +119,29 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
     print(rotatory_strength)
 
     if spectra == True:
+
+
+        entry = [eV, nm, cm_1, oscillator_strength]
+        data = np.zeros((eV.shape[0],len(entry)))
+        for i in range(len(entry)):
+            data[:,i] = entry[i]
+        print('================================================')
+        print('eV       nm       cm^-1    oscillator strength')
+        for row in range(data.shape[0]):
+            print(f'{data[row,0]:<8.3f} {data[row,1]:<8.0f} {data[row,2]:<8.0f} {data[row,3]:<8.8f}')
+
+        filename = name + '_eV_os_Multiwfn.txt'
+        with open(filename, 'w') as f:
+            np.savetxt(f, data[:,(0,3)], fmt='%.5f', header=f'{len(energies)} 1', comments='')
+        print('eV Oscillator strength spectra data written to', filename)
+
+        filename = name + '_eV_rs_Multiwfn.txt'
+        with open(filename, 'w') as f:
+            new_rs_data = np.hstack((data[:,0].reshape(-1,1), rotatory_strength.reshape(-1,1)))
+            np.savetxt(f, new_rs_data, fmt='%.5f', header=f'{len(energies)} 1', comments='')
+        print('eV Rotatory strength spectra data written to', filename)
+
+
         if RKS:
             print(f"print RKS transition coefficients larger than {print_threshold:.2e}")
             print('index of HOMO:', n_occ)
@@ -147,25 +170,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         else:
             print('UKS transition coefficient not implemenetd yet')
 
-        entry = [eV, nm, cm_1, oscillator_strength]
-        data = np.zeros((eV.shape[0],len(entry)))
-        for i in range(len(entry)):
-            data[:,i] = entry[i]
-        print('================================================')
-        print('eV       nm       cm^-1    oscillator strength')
-        for row in range(data.shape[0]):
-            print(f'{data[row,0]:<8.3f} {data[row,1]:<8.0f} {data[row,2]:<8.0f} {data[row,3]:<8.8f}')
 
-        filename = name + '_eV_os_Multiwfn.txt'
-        with open(filename, 'w') as f:
-            np.savetxt(f, data[:,(0,3)], fmt='%.5f', header=f'{len(energies)} 1', comments='')
-        print('eV Oscillator strength spectra data written to', filename)
-
-        filename = name + '_eV_rs_Multiwfn.txt'
-        with open(filename, 'w') as f:
-            new_rs_data = np.hstack((data[:,0].reshape(-1,1), rotatory_strength.reshape(-1,1)))
-            np.savetxt(f, new_rs_data, fmt='%.5f', header=f'{len(energies)} 1', comments='')
-        print('eV Rotatory strength spectra data written to', filename)
     return oscillator_strength
 
 

@@ -48,7 +48,7 @@ def get_auxmol(mol, theta=0.2, fitting_basis='s'):
     tt = time.time()
     auxmol = gto.M(atom=mol.atom, 
                     basis=mol.basis,
-                    parse_arg = False, 
+                    parse_arg=False, 
                     spin=mol.spin, 
                     charge=mol.charge,
                     cart=mol.cart)
