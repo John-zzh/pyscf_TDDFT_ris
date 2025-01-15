@@ -30,6 +30,8 @@ def gen_args():
 
     parser.add_argument('-Ktrunc', '--Ktrunc',       type=float,  default=40,     help='eV truncaion threshold for the MO in K')
 
+    parser.add_argument('-GPU', '--GPU',           type=str2bool,  default=False,     help='use GPU')
+
     parser.add_argument('-TDA',  '--TDA',               type=str2bool,  default=False,    help='peform TDA calculation instead of TDDFT') 
     parser.add_argument('-n',    '--nroots',            type=int,   default=10,        help='the number of states you want to solve')
     parser.add_argument('-t',    '--conv_tol',          type=float,  default=1e-3,      help='the convengence tolerance in the Davidson diagonalization')
@@ -88,27 +90,50 @@ if __name__ == '__main__':
         mf = readMO.get_mf_from_molden(molden_file=args.filename, 
                                        functional=args.functional,
                                        basis=args.basis)
-        
-    from pyscf_TDDFT_ris import TDDFT_ris_Ktrunc as TDDFT_ris
-    print('use new code')
-    td = TDDFT_ris.TDDFT_ris(mf=mf, 
-                    theta=args.theta,
-                    J_fit=args.J_fit, 
-                    K_fit=args.K_fit,
-                    a_x=args.a_x,
-                    omega=args.omega,
-                    alpha=args.alpha,
-                    beta=args.beta,
-                    Ktrunc=args.Ktrunc,
-                    max_mem_mb=args.max_mem_mb,
-                    conv_tol=args.conv_tol,
-                    nroots=args.nroots, 
-                    single=args.single,
-                    GS=args.GS,
-                    max_iter=args.max_iter,
-                    out_name=args.spectraoutname,
-                    spectra = args.spectra,
-                    print_threshold=args.print_threshold)           
+
+    if args.GPU == False:
+        from pyscf_TDDFT_ris import TDDFT_ris_Ktrunc as TDDFT_ris
+        # print('use new code')
+        td = TDDFT_ris.TDDFT_ris(mf=mf, 
+                        theta=args.theta,
+                        J_fit=args.J_fit, 
+                        K_fit=args.K_fit,
+                        a_x=args.a_x,
+                        omega=args.omega,
+                        alpha=args.alpha,
+                        beta=args.beta,
+                        Ktrunc=args.Ktrunc,
+                        max_mem_mb=args.max_mem_mb,
+                        conv_tol=args.conv_tol,
+                        nroots=args.nroots, 
+                        single=args.single,
+                        GS=args.GS,
+                        max_iter=args.max_iter,
+                        out_name=args.spectraoutname,
+                        spectra = args.spectra,
+                        print_threshold=args.print_threshold)           
+    else:
+        from pyscf_TDDFT_ris_cupy import TDDFT_ris
+        # print('use new code')
+        td = TDDFT_ris.TDDFT_ris(mf=mf.to_gpu(), 
+                        theta=args.theta,
+                        J_fit=args.J_fit, 
+                        K_fit=args.K_fit,
+                        a_x=args.a_x,
+                        omega=args.omega,
+                        alpha=args.alpha,
+                        beta=args.beta,
+                        Ktrunc=args.Ktrunc,
+                        max_mem_mb=args.max_mem_mb,
+                        conv_tol=args.conv_tol,
+                        nroots=args.nroots, 
+                        single=args.single,
+                        GS=args.GS,
+                        max_iter=args.max_iter,
+                        out_name=args.spectraoutname,
+                        spectra = args.spectra,
+                        print_threshold=args.print_threshold)         
+
 
     if args.TDA == True:
         energies, X, oscillator_strength = td.kernel_TDA()
