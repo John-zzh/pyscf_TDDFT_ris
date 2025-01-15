@@ -13,6 +13,7 @@ def get_mf_from_fch(fch_file: str, functional: str = None):
     from mokit.lib.rwwfn import read_eigenvalues_from_fch, read_nbf_and_nif_from_fch, read_na_and_nb_from_fch
     
     mol = load_mol_from_fch(fch_file)
+    print('N atoms =', mol.natm)
     mo_coeff = mo_fch2py(fch_file)
     nbf, nif = read_nbf_and_nif_from_fch(fch_file)
     print('nbf =', nbf)
