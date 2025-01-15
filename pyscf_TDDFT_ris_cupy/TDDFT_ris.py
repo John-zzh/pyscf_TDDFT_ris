@@ -178,7 +178,7 @@ def get_eri2c_eri3c(mol, auxmol, max_mem_mb, omega=0, single=True):
 
         eri3c = eri3c.transpose(2, 1, 0)
         eri3c = eri3c.astype(dtype=dtype, order='C')
-        eri3c = cp.asarray(eri3c)
+        # eri3c = cp.asarray(eri3c)
         print(f'    eri3c to GPU time: {time.time() - tt:.2f} s')
 
         return eri2c, eri3c
@@ -205,7 +205,7 @@ def get_eri2c_eri3c(mol, auxmol, max_mem_mb, omega=0, single=True):
                 eri3c_slice = eri3c_slice.astype(dtype=dtype, order='C')
                 print(f'    eri3c_slice on CPU time: {time.time() - tt:.2f} s')
                 tt = time.time()
-                eri3c_slice = cp.asarray(eri3c_slice)
+                # eri3c_slice = cp.asarray(eri3c_slice)
                 print(f'    eri3c_slice to GPU time: {time.time() - tt:.2f} s')
                 print(f'    eri3c_slice mem: {eri3c_slice.nbytes / (1024 ** 2):.0f} MB')
 
@@ -270,7 +270,7 @@ def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, max_m
        -|-------------||-------------|
 '''
 
-def get_pre_Tpq_one_batch(eri3c: cp.ndarray, C_p: cp.ndarray, C_q: cp.ndarray):
+def get_pre_Tpq_one_batch(eri3c, C_p, C_q):
     '''    
     T_pq means rank-3 Tensor (pq|P)
 
@@ -294,6 +294,10 @@ def get_pre_Tpq_one_batch(eri3c: cp.ndarray, C_p: cp.ndarray, C_q: cp.ndarray):
     beause respecting c-contiguous is beneficial for memory access, much faster
 
     '''
+    C_p = C_p.get()
+    C_q = C_q.get()
+
+    print('type(eri3c), type(C_p), type(C_q)', type(eri3c), type(C_p), type(C_q))
     t_satrt = time.time()
 
     tt = time.time()
@@ -309,7 +313,7 @@ def get_pre_Tpq_one_batch(eri3c: cp.ndarray, C_p: cp.ndarray, C_q: cp.ndarray):
        C_p (nbf, n_p)
        >> eri3c_C_p (nauxbf*nbf, n_p)'''
     eri3c = eri3c.reshape(nauxbf*nbf, nbf)
-    eri3c_C_p = cp.dot(eri3c, C_p)
+    eri3c_C_p = np.dot(eri3c, C_p)
     tt = time.time()
 
     ''' eri3c_C_p (nauxbf*nbf, n_p) 
@@ -322,8 +326,9 @@ def get_pre_Tpq_one_batch(eri3c: cp.ndarray, C_p: cp.ndarray, C_q: cp.ndarray):
         C_q  (nbf, n_q)
         >> pre_T_pq (nauxbf*n_p, n_q) >  (nauxbf, n_p, n_q)  '''
     eri3c_C_p = eri3c_C_p.reshape(nauxbf*n_p, nbf)
-    pre_T_pq = cp.dot(eri3c_C_p, C_q)
+    pre_T_pq = np.dot(eri3c_C_p, C_q)
     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
+    pre_T_pq = cp.asarray(pre_T_pq)
     print(f'    pre_T_pq time: {time.time() - t_satrt:.1f} seconds')
     return pre_T_pq
 
@@ -348,7 +353,7 @@ def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
     """
     # 判断 eri3c 的类型
     # print('type(eri3c)', type(eri3c))
-    if isinstance(eri3c, cp.ndarray):
+    if not callable(eri3c):
         pre_T_pq = get_pre_Tpq_one_batch(eri3c, C_p, C_q)
 
 
@@ -358,7 +363,7 @@ def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
         n_p = C_p.shape[1]
         n_q = C_q.shape[1]
 
-        pre_T_pq = cp.zeros((nauxbf, n_p, n_q), dtype=C_p.dtype) 
+        pre_T_pq = np.zeros((nauxbf, n_p, n_q), dtype=C_p.dtype) 
         aux_offset = 0  # Offset to track where to store results in T_pq
         
         i = 0
@@ -375,6 +380,7 @@ def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
     else:
         raise ValueError("eri3c must be either a numpy.ndarray or a callable returning a generator.")
 
+    pre_T_pq = cp.asarray(pre_T_pq)
     T_pq = get_pre_T_pq_to_Tpq(pre_T_pq, lower_inv_eri2c)
     return T_pq
 
@@ -1380,7 +1386,7 @@ class TDDFT_ris(object):
         '''
         tag = self.eri_tag
         int_r = self.mol.intor_symmetric('int1e_r'+tag)
-        int_r = cp.asarray(int_r, dtype=cp.float32 if self.single else cp.float64)
+        int_r = np.asarray(int_r, dtype=cp.float32 if self.single else cp.float64)
         mo_occ = self.mf.mo_occ
         mo_coeff = self.mf.mo_coeff
 
@@ -1395,7 +1401,7 @@ class TDDFT_ris(object):
         tag = self.eri_tag
         # int_rxp = self.mol.intor_symmetric('int1e_cg_irxp'+tag)
         int_rxp = self.mol.intor('int1e_cg_irxp', comp=3, hermi=2)
-        int_rxp = cp.asarray(int_rxp, dtype=cp.float32 if self.single else cp.float64)
+        int_rxp = np.asarray(int_rxp, dtype=cp.float32 if self.single else cp.float64)
         mo_occ = self.mf.mo_occ
         mo_coeff = self.mf.mo_coeff
 
