@@ -209,7 +209,7 @@ TDA codes are not opimized yet, do not use it. Anyway, TDDFT-ris is better for U
 
 ## To do list
 1. Assign certain elements with full default fitting basis, e.g. transition metals need full fitting basis
-2. TDA, UKS, pure functionals.
+2. UKS
 3. Solvation model (not important for now)
 
 ## Acknowledgements
