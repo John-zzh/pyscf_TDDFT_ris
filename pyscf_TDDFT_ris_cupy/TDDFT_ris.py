@@ -176,11 +176,11 @@ def get_eri2c_eri3c(mol, auxmol, max_mem_mb, omega=0, single=True):
         print(f'    eri3c on CPU time: {time.time() - tt:.2f} s')
         tt = time.time()
 
-        eri3c = eri3c.astype(dtype=dtype)
-
-        eri3c = cp.asarray(eri3c.transpose(2, 1, 0), order='C')
+        eri3c = eri3c.transpose(2, 1, 0)
+        eri3c = eri3c.astype(dtype=dtype, order='C')
+        eri3c = cp.asarray(eri3c)
         print(f'    eri3c to GPU time: {time.time() - tt:.2f} s')
-        # eri3c = .astype(order='C')
+
         return eri2c, eri3c
 
     else:
@@ -201,10 +201,11 @@ def get_eri2c_eri3c(mol, auxmol, max_mem_mb, omega=0, single=True):
                 )
                 tt = time.time()
                 eri3c_slice = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
-                eri3c_slice = eri3c_slice.astype(dtype=dtype)
+                eri3c_slice = eri3c_slice.transpose(2, 1, 0)
+                eri3c_slice = eri3c_slice.astype(dtype=dtype, order='C')
                 print(f'    eri3c_slice on CPU time: {time.time() - tt:.2f} s')
                 tt = time.time()
-                eri3c_slice = cp.asarray(eri3c_slice.transpose(2, 1, 0), order='C')
+                eri3c_slice = cp.asarray(eri3c_slice)
                 print(f'    eri3c_slice to GPU time: {time.time() - tt:.2f} s')
                 print(f'    eri3c_slice mem: {eri3c_slice.nbytes / (1024 ** 2):.0f} MB')
 
