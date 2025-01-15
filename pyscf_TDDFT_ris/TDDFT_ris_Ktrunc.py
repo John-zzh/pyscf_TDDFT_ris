@@ -7,8 +7,6 @@ from pyscf_TDDFT_ris import parameter, math_helper, spectralib
 # from pyscf_TDDFT_ris import eigen_solver_old as eigen_solver
 from pyscf_TDDFT_ris import eigen_solver
 
-import gc
-
 import time
 
 np.set_printoptions(linewidth=250, threshold=np.inf)
@@ -310,7 +308,7 @@ def get_pre_Tpq_one_batch(eri3c: np.ndarray, C_p: np.ndarray, C_q: np.ndarray):
        C_p (nbf, n_p)
        >> eri3c_C_p (nauxbf*nbf, n_p)'''
     eri3c = eri3c.reshape(nauxbf*nbf, nbf)
-    eri3c_C_p = eri3c @ C_p
+    eri3c_C_p = np.dot(eri3c, C_p)
     # print(f'T_pq  np.dot(eri3c, C_p) time {time.time() - tt:.1f} seconds')
     tt = time.time()
 
@@ -324,7 +322,7 @@ def get_pre_Tpq_one_batch(eri3c: np.ndarray, C_p: np.ndarray, C_q: np.ndarray):
         C_q  (nbf, n_q)
         >> pre_T_pq (nauxbf*n_p, n_q) >  (nauxbf, n_p, n_q)  '''
     eri3c_C_p = eri3c_C_p.reshape(nauxbf*n_p, nbf)
-    pre_T_pq = eri3c_C_p @ C_q
+    pre_T_pq = np.dot(eri3c_C_p, C_q)
     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
     # print(f'T_pq  np.dot(tmp, C_q)time {time.time() - tt:.1f} seconds')
     # tt = time.time()
@@ -340,7 +338,7 @@ def get_pre_T_pq_to_Tpq(pre_T_pq: np.ndarray, lower_inv_eri2c: np.ndarray):
 
     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p*n_q)
 
-    T_pq = lower_inv_eri2c.T @ pre_T_pq
+    T_pq = np.dot(lower_inv_eri2c.T, pre_T_pq)
     T_pq = T_pq.reshape(nauxbf, n_p, n_q)
     
 
@@ -388,38 +386,6 @@ def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
     T_pq = get_pre_T_pq_to_Tpq(pre_T_pq, lower_inv_eri2c)
     return T_pq
 
-# def gen_hdiag_MVP(mo_energy, n_occ, n_vir, sqrt=False):
-
-#     '''KS orbital energy difference, ε_a - ε_i
-#     '''
-#     vir = mo_energy[n_occ:].reshape(1,n_vir)
-#     occ = mo_energy[:n_occ].reshape(n_occ,1)
-#     delta_hdiag = np.repeat(vir, n_occ, axis=0) - np.repeat(occ, n_vir, axis=1)
-
-#     hdiag = delta_hdiag.reshape(n_occ*n_vir)
-#     # print(hdiag)
-#     # print('delta_hdiag[-1,0]', delta_hdiag[-1,0]*parameter.Hartree_to_eV)
-#     # Hdiag = np.vstack((hdiag, hdiag))
-#     # Hdiag = Hdiag.reshape(-1)
-#     if sqrt == False:
-#         '''standard diag(A)V
-#             preconditioner = diag(A)
-#         '''
-#         def hdiag_MVP(V):
-#             delta_hdiag_v = einsum("ia,iam->iam", delta_hdiag, V)
-#             return delta_hdiag_v
-#         return hdiag_MVP, hdiag
-    
-#     elif sqrt == True:
-#         '''diag(A)**0.5 V
-#             preconditioner = diag(A)**2
-#         '''
-#         delta_hdiag_sqrt = np.sqrt(delta_hdiag)
-#         hdiag_sq = hdiag**2
-#         def hdiag_sqrt_MVP(V):
-#             delta_hdiag_v = einsum("ia,iam->iam", delta_hdiag_sqrt, V)
-#             return delta_hdiag_v
-#         return hdiag_sqrt_MVP, hdiag_sq
 
 def gen_hdiag_MVP(hdiag, n_occ, n_vir):
     # def hdiag_MVP(V):
@@ -450,29 +416,9 @@ def gen_iajb_MVP(T_left, T_right):
         V in shape (m, n_occ * n_vir)
         '''
         
-        # T_right_jb_V = einsum("jbP,jbm->Pm", T_right, V)
-        # iajb_V = einsum("iaP,Pm->iam", T_left, T_right_jb_V)
         T_right_jb_V = einsum("Pjb,mjb->Pm", T_right, V)
         iajb_V = einsum("Pia,Pm->mia", T_left, T_right_jb_V)
 
-        # ''' T_right (nauxbf, n_occ, n_vir) -> (nauxbf, n_occ*n_vir)
-        #     V (m, n_occ*n_vir) 
-        #    >> T_right_V (nauxbf, m)'''
-        # m = V.shape[0]
-        # V = V.reshape(m, n_occ*n_vir)
-
-        # T_right_reshaped = T_right.reshape(nauxbf, n_occ*n_vir)
-        # T_right_V = np.dot(T_right_reshaped, V.T)
-
-        # ''' T_left (nauxbf, n_occ, n_vir) -> (nauxbf, n_occ*n_vir)
-        #     T_right_V (nauxbf, m)
-        #    >> iajb_V (m, n_occ*n_vir) '''
-        # print('T_left.stride', T_left.strides)
-        # T_left_reshaped = T_left.reshape(nauxbf, n_occ*n_vir)
-        # print('T_left.stride', T_left_reshaped.strides)
-        # iajb_V = np.dot(T_right_V.T, T_left_reshaped)
-        # iajb_V = iajb_V.reshape(m, n_occ, n_vir)
-        # # print('iajb_V.dtype', iajb_V.dtype)
         return iajb_V
     return iajb_MVP
 
@@ -483,30 +429,10 @@ def gen_ijab_MVP(T_ij, T_ab):
                 = Σ_P [T_ij^P Σ_jb(T_ab^P V_jb^m)]
         V in shape (m, n_occ * n_vir)
         '''
-        # T_ab_V = einsum("abP,jbm->jPam", T_ab, V)
-        # ijab_V = einsum("ijP,jPam->iam", T_ij, T_ab_V)
-        # print('ijab_V.dtype', ijab_V.dtype)
+
         T_ab_V = einsum("Pab,mjb->Pamj", T_ab, V)
         ijab_V = einsum("Pij,Pamj->mia", T_ij, T_ab_V)
-        # ''' V (m, n_occ, n_vir) -> (m*n_occ, n_vir)
-        #     T_ab (nauxbf, n_vir, n_vir) 
-        #     >> T_ab_V (nauxbf, n_vir, m*n_occ) '''
-        # m = V.shape[0]
-        # # V = V.reshape(m, n_occ, n_vir)
-        # V = V.reshape(m*n_occ, n_vir)
-        # T_ab_V = np.dot(T_ab, V.T)
 
-        # ''' 
-        # T_ab_V (nauxbf, n_vir, m*n_occ) -> (nauxbf, n_vir, m, n_occ) -> (nauxbf, n_occ, m, n_vir) -> (nauxbf*n_occ, n_vir*m)
-        # T_ij (nauxbf, n_occ, n_occ) -> T_ij (nauxbf*n_occ, n_occ) 
-        # >> ijab_V (n_occ, n_vir, m) '''
-        # T_ab_V = T_ab_V.reshape(nauxbf, n_vir, m, n_occ)
-        # T_ab_V = T_ab_V.transpose(0, 3, 2, 1)
-        # T_ab_V = T_ab_V.reshape(nauxbf*n_occ, n_vir*m)
-        # T_ij_reshaped = T_ij.reshape(nauxbf*n_occ, n_occ)
-        # ijab_V = np.dot(T_ij_reshaped.T, T_ab_V)
-        # ijab_V = ijab_V.reshape(n_occ, n_vir, m)
-        # ijab_V = ijab_V.transpose(2,0,1)
         return ijab_V
     return ijab_MVP
 
@@ -518,32 +444,9 @@ def get_ibja_MVP(T_ia):
                 = Σ_P [T_ja^P Σ_jb(T_ib^P V_jb^m)]           
         '''
 
-        # T_ib_V = einsum("ibP,jbm->Pijm", T_ia, V)
-        # ibja_V = einsum("jaP,Pijm->iam", T_ia, T_ib_V)
-        # print('ibja_V.dtype',ibja_V.dtype)
-
         T_ib_V = einsum("Pib,mjb->Pimj", T_ia, V)
         ibja_V = einsum("Pja,Pimj->mia", T_ia, T_ib_V)
 
-        ''' T_ia (nauxbf, n_occ, n_vir)               P i b
-            V (m, n_occ, n_vir) -> (n_vir, n_occ, m)  m j b -> b j m -> b jm
-            >> T_ib_V (nauxbf, n_occ, n_occ*m)       P i jm'''
-        # m = V.shape[0]
-        # # V = V.reshape(m, n_occ, n_vir)
-        # V = V.transpose(2,1,0)
-        # V = V.reshape(n_vir, n_occ*m)
-        # T_ib_V = np.dot(T_ia, V)
-
-        # ''' T_ib_V (nauxbf, n_occ, n_occ, m) -> (m, n_occ, nauxbf, n_occ) -> (m, n_occ, nauxbf*n_occ) P i j m -> m i P j -> m i Pj
-        #     T_ia (nauxbf, n_occ, n_vir) -> T_ia (nauxbf*n_occ, n_vir)                                 Pj a 
-        #     >> ibja_V (m, n_occ, n_vir)                                                               m i a'''
-        # T_ib_V = T_ib_V.reshape(nauxbf, n_occ, n_occ, m)
-        # T_ib_V = T_ib_V.transpose(3,1,0,2)
-        # T_ib_V = T_ib_V.reshape(m, n_occ, nauxbf*n_occ)
-
-        # T_ia_reshaped = T_ia.reshape(nauxbf*n_occ, n_vir)
-        # ibja_V = np.dot(T_ib_V, T_ia_reshaped)
-        # ibja_V = ibja_V.reshape(m, n_occ*n_vir)
         return ibja_V
     return ibja_MVP
 
@@ -719,12 +622,14 @@ class TDDFT_ris(object):
 
     #  ===========  RKS hybrid ===========
     def get_RKS_TDA_hybrid_MVP(self):
+        ''' TDA RKS hybrid '''
         a_x = self.a_x
         n_occ = self.n_occ
         n_vir = self.n_vir
 
         mo_coeff = self.mf.mo_coeff
         mo_energy = self.mf.mo_energy
+
         single = self.single 
 
         C_occ_notrunc = self.C_occ_notrunc
@@ -736,7 +641,7 @@ class TDDFT_ris(object):
         rest_occ = self.rest_occ
         rest_vir = self.rest_vir
 
-        delta_hdiag = self.delta_hdiag
+        hdiag = self.delta_hdiag.reshape(-1)
 
         mol = self.mol
         theta = self.theta 
@@ -748,38 +653,34 @@ class TDDFT_ris(object):
         beta = self.beta
         omega = self.omega
 
+        max_mem_mb = self.max_mem_mb
         ''' RIJ '''
+        tt = time.time()
+        print('==================== RIJ ====================')
         auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
-
+        
         eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
-        uvP_withL_J = get_uvP_withL(eri2c=eri2c_J, eri3c=eri3c_J)
 
+        lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J,-0.5,epsilon=1e-6)
+        lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=np.float32 if single else np.float64)
+       
+        T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
+        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
+        tt = time.time()
 
+        print('==================== RIK ====================')
         ''' RIK '''
         if K_fit == J_fit:
+            ''' K uese exactly same basis as J and they share same set of Tensors'''
             auxmol_K = auxmol_J
-            eri2c_K = eri2c_J
-            eri3c_K = eri3c_J
-            if omega == None or omega == 0:
-                ''' just normal hybrid, go ahead to build uvP_withL_K '''
-                uvP_withL_K = uvP_withL_J
+            eri2c_K, eri3c_K = eri2c_J, eri3c_J
         else:
+            ''' K uese different basis as J'''
             auxmol_K = get_auxmol(mol=mol, theta=theta, fitting_basis=K_fit) 
             eri2c_K, eri3c_K = get_eri2c_eri3c(mol=mol, auxmol=auxmol_K, omega=0, single=single, max_mem_mb=max_mem_mb)
-            if omega == None or omega == 0:
-                ''' just normal hybrid, go ahead to build uvP_withL_K '''
-                uvP_withL_K = get_uvP_withL(eri2c=eri2c_K, eri3c=eri3c_K)
 
         if omega and omega > 0:
-            '''
-            the 2c2e and 3c2e integrals for hybrid or RSH (range-saparated hybrid) 
-
-            (ij|ab) = (ij|1-(alpha + beta*erf(omega))/r|ab)  + (ij|alpha + beta*erf(omega)/r|ab)
-            short-range part (ij|1-(alpha + beta*erf(omega))/r|ab) is treated by the DFT XC functional, thus not considered here
-            long-range part  (ij|alpha + beta*erf(omega)/r|ab) = alpha (ij|r|ab) + beta*(ij|erf(omega)/r|ab)
-            ''' 
-
-            print(f'rebuild eri2c and eri3c with screening factor ω = {omega}')
+            print(f'        rebuild eri2c_K and eri3c_K with screening factor ω = {omega}')
             '''RSH, eri2c_K and eri3c_K need to be redefined'''
             eri2c_K, eri3c_K = get_eri2c_eri3c_RSH(mol=mol, 
                                                 auxmol=auxmol_K, 
@@ -788,22 +689,24 @@ class TDDFT_ris(object):
                                                 alpha=alpha, 
                                                 beta=beta, 
                                                 omega=omega, 
-                                                single=single)
+                                                single=single,
+                                                max_mem_mb=max_mem_mb)
 
-            uvP_withL_K = get_uvP_withL(eri2c=eri2c_K, eri3c=eri3c_K)
+        lower_inv_eri2c_K = math_helper.matrix_power(eri2c_K,-0.5,epsilon=1e-6)
+        lower_inv_eri2c_K = lower_inv_eri2c_K.astype(dtype=np.float32 if single else np.float64)
 
-        assert False
-        hdiag = delta_hdiag.reshape(-1)
-        hdiag_MVP = gen_hdiag_MVP(hdiag)
-        '''hybrid RKS TDA'''
-        
-        T_ia_J = get_Tia(uvP_withL=uvP_withL_J, C_occ=C_occ_notrunc, C_vir=C_vir_notrunc)
-        T_ij_K, T_ab_K = get_Tij_Tab(uvP_withL=uvP_withL_K, C_occ=C_occ_Ktrunc, C_vir=C_vir_Ktrunc)
 
+        T_ij_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_occ_Ktrunc)
+        T_ab_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_vir_Ktrunc, C_q=C_vir_Ktrunc)
+
+        print(f'T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
+
+        # hdiag = delta_hdiag.reshape(-1)
+        hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
 
         iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
         ijab_MVP = gen_ijab_MVP(T_ij=T_ij_K,   T_ab=T_ab_K)
-        
+
         def RKS_TDA_hybrid_MVP(X):
             ''' hybrid or range-sparated hybrid, a_x > 0
                 return AX
@@ -813,11 +716,13 @@ class TDDFT_ris(object):
                 if not MO truncation, then n_occ-rest_occ=0 and rest_vir=n_vir
             '''
             # print('a_x=', a_x)
-            X = X.reshape(n_occ, n_vir, -1)
+            nstates = X.shape[0]
+            X = X.reshape(nstates, n_occ, n_vir)
             AX = hdiag_MVP(X) 
             AX += 2 * iajb_MVP(X) 
-            AX[n_occ-rest_occ:,:rest_vir,:] -= a_x * ijab_MVP(X[n_occ-rest_occ:,:rest_vir,:])
-            AX = AX.reshape(n_occ*n_vir, -1)
+
+            AX[:,n_occ-rest_occ:,:rest_vir] -= a_x * ijab_MVP(X[:,n_occ-rest_occ:,:rest_vir])
+            AX = AX.reshape(nstates, n_occ*n_vir)
 
             return AX
 
@@ -868,27 +773,6 @@ class TDDFT_ris(object):
         # lower_inv_eri2c_J = np.linalg.cholesky(math_helper.matrix_power(eri2c_J,-1,epsilon=1e-6))
         lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J,-0.5,epsilon=1e-6)
         lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=np.float32 if single else np.float64)
-
-
-
-
-        # '''debug compare efficienty with cholesky_eri'''
-        # int3c_cholesky_eri = df.incore.cholesky_eri(mol=mol, auxmol=auxmol_J, aosym = 's1')
-        # nbf = n_occ +  n_vir
-        # int3c_cholesky_eri = int3c_cholesky_eri.reshape(-1,nbf,nbf)
-        # print('int3c_cholesky_eri.shape', int3c_cholesky_eri.shape)
-        # # print('int3c_cholesky_eri.flags', int3c_cholesky_eri.flags)
-
-        # corret_eri3c = np.einsum('Quv,QP->Puv', int3c_cholesky_eri, math_helper.matrix_power(eri2c_J,1) )
-        # print('corret_eri3c_L.shape', corret_eri3c.shape)
-        # # print('corret_eri3c_L.flags', corret_eri3c_L.flags)       
-
-
-        # print('########## check equal?##########')
-        
-        # # 
-        # print(np.linalg.norm(eri3c_J - corret_eri3c ))  
-        # assert False
        
         T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
@@ -1004,83 +888,121 @@ class TDDFT_ris(object):
 
     #  ===========  RKS pure ===========
     def get_RKS_TDA_pure_MVP(self):
+        '''hybrid RKS TDA'''
         a_x = self.a_x
         n_occ = self.n_occ
         n_vir = self.n_vir
-        # n_occ*n_vir = n_occ*n_vir
 
         mo_coeff = self.mf.mo_coeff
         mo_energy = self.mf.mo_energy
 
+        single = self.single 
+
+        C_occ_notrunc = self.C_occ_notrunc
+        C_vir_notrunc = self.C_vir_notrunc
+
+        rest_occ = self.rest_occ
+        rest_vir = self.rest_vir
+
+        hdiag = self.delta_hdiag.reshape(-1)
+
         mol = self.mol
-        auxmol = self.get_auxmol(theta=self.theta, add_p=self.add_p)
-        eri2c, eri3c = self.get_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega=0)
+        theta = self.theta 
 
-        uvP_withL = get_uvP_withL(eri2c=eri2c, eri3c=eri3c)
+        J_fit = self.J_fit
 
-        raise ValueError('not implemented yet')
-        '''pure RKS TDA'''
-        T_ia = get_Tia(uvP_withL, mo_coeff, n_occ) 
+        max_mem_mb = self.max_mem_mb
+        ''' RIJ '''
+        tt = time.time()
+        print('==================== RIJ ====================')
+        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
+        
+        eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
 
-        iajb_MVP = self.gen_iajb_MVP(T_left=T_ia, T_right=T_ia)
+        lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J,-0.5,epsilon=1e-6)
+        lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=np.float32 if single else np.float64)
+       
+        T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
+        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
+        tt = time.time()
+ 
+        hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
+        iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
         def RKS_TDA_pure_MVP(X):
             ''' pure functional, a_x = 0
                 return AX
                 AV = hdiag_MVP(V) + 2*iajb_MVP(V) 
-                for RSH, a_x = 1
             '''
-            # print('a_x=', a_x)
-            X = X.reshape(n_occ, n_vir, -1)
-            AX = hdiag_MVP(X) + 2*iajb_MVP(X)
-            AX = AX.reshape(n_occ*n_vir, -1)
+            nstates = X.shape[0]
+            X = X.reshape(nstates, n_occ, n_vir)
+            AX = hdiag_MVP(X) 
+            AX += 2 * iajb_MVP(X) 
+            AX = AX.reshape(nstates, n_occ*n_vir)
             return AX
 
         return RKS_TDA_pure_MVP, hdiag
        
     def gen_RKS_TDDFT_pure_MVP(self):  
             
-            a_x = self.a_x
-            n_occ = self.n_occ
-            n_vir = self.n_vir
-            # n_occ*n_vir=n_occ*n_vir 
+        a_x = self.a_x
+        n_occ = self.n_occ
+        n_vir = self.n_vir
 
-            mo_coeff = self.mf.mo_coeff
-            mo_energy = self.mf.mo_energy
+        mo_coeff = self.mf.mo_coeff
+        mo_energy = self.mf.mo_energy
 
-            mol = self.mol
-            auxmol = self.get_auxmol(theta=self.theta, add_p=self.add_p)
-            eri2c, eri3c = self.get_eri2c_eri3c(mol=self.mol, auxmol=auxmol, omega=0)
-            uvP_withL = self.get_uvP_withL(eri2c=eri2c, eri3c=eri3c)
+        single = self.single 
 
-            hdiag_MVP, hdiag = self.get_hdiag_MVP(mo_energy=mo_energy, 
-                                                    n_occ=n_occ, 
-                                                    n_vir=n_vir)
-            '''pure RKS TDDFT'''
-            hdiag_sqrt_MVP, hdiag_sq = self.get_hdiag_MVP(mo_energy=mo_energy, 
-                                                          n_occ=n_occ, 
-                                                          n_vir=n_vir,
-                                                          sqrt=True)
-            T_ia = self.get_T(uvP_withL=uvP_withL,
-                            n_occ=n_occ, 
-                            mo_coeff=mo_coeff,
-                            calc='coulomb_only')
-            iajb_MVP = self.gen_iajb_MVP(T_left=T_ia, T_right=T_ia)
+        C_occ_notrunc = self.C_occ_notrunc
+        C_vir_notrunc = self.C_vir_notrunc
 
-            def RKS_TDDFT_pure_MVP(Z):
-                '''(A-B)^1/2(A+B)(A-B)^1/2 Z = Z w^2
-                                        MZ = Z w^2
-                    X+Y = (A-B)^1/2 Z
-                    A+B = hdiag_MVP(V) + 4*iajb_MVP(V)
-                    (A-B)^1/2 = hdiag_sqrt_MVP(V)
-                '''
-                Z = Z.reshape(n_occ, n_vir, -1)
-                AmB_sqrt_V = hdiag_sqrt_MVP(Z)
-                ApB_AmB_sqrt_V = hdiag_MVP(AmB_sqrt_V) + 4*iajb_MVP(AmB_sqrt_V)
-                MZ = hdiag_sqrt_MVP(ApB_AmB_sqrt_V)
-                MZ = MZ.reshape(n_occ*n_vir, -1)
-                return MZ
-            
-            return RKS_TDDFT_pure_MVP, hdiag_sq
+        rest_occ = self.rest_occ
+        rest_vir = self.rest_vir
+
+        hdiag = self.delta_hdiag.reshape(-1)
+
+        mol = self.mol
+        theta = self.theta 
+
+        J_fit = self.J_fit
+
+        max_mem_mb = self.max_mem_mb
+        ''' RIJ '''
+        tt = time.time()
+        print('==================== RIJ ====================')
+        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
+        
+        eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
+
+        lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J, -0.5, epsilon=1e-6)
+        lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=np.float32 if single else np.float64)
+       
+        T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
+        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
+        tt = time.time()
+ 
+        hdiag_sqrt_MVP = gen_hdiag_MVP(hdiag=hdiag**0.5, n_occ=n_occ, n_vir=n_vir)
+        hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
+        iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
+        hdiag_sq = hdiag**2
+        def RKS_TDDFT_pure_MVP(Z):
+            '''(A-B)^1/2(A+B)(A-B)^1/2 Z = Z w^2
+                                    MZ = Z w^2
+                M = (A-B)^1/2 (A+B) (A-B)^1/2
+                X+Y = (A-B)^1/2 Z
+
+                (A+B)(V) = hdiag_MVP(V) + 4*iajb_MVP(V)
+                (A-B)^1/2(V) = hdiag_sqrt_MVP(V)
+            '''
+            nstates = Z.shape[0]
+            Z = Z.reshape(nstates, n_occ, n_vir)
+            AmB_sqrt_V = hdiag_sqrt_MVP(Z)
+            ApB_AmB_sqrt_V = hdiag_MVP(AmB_sqrt_V) + 4*iajb_MVP(AmB_sqrt_V)
+            MZ = hdiag_sqrt_MVP(ApB_AmB_sqrt_V)
+            MZ = MZ.reshape(nstates, n_occ*n_vir)
+            return MZ
+        
+        return RKS_TDDFT_pure_MVP, hdiag_sq
         
     #  ===========  UKS ===========
     def get_UKS_TDA_MVP(self):
@@ -1430,28 +1352,6 @@ class TDDFT_ris(object):
         #     ABX = ABX.reshape(n_occ*n_vir, -1)
 
         #     return ABX
-        
-    # def get_vind(self, TDA_MVP, TDDFT_MVP):
-    #     '''
-    #     _vind is pyscf style, to feed pyscf eigensovler
-    #     _MVP is my style, to feed my eigensovler
-    #     '''
-    #     def TDA_vind(V):
-    #         '''
-    #         return AX
-    #         '''
-    #         V = np.asarray(V)
-    #         return TDA_MVP(V.T).T
-
-    #     def TDDFT_vind(U):
-    #         # print('U.shape',U.shape)
-    #         X = U[:,:n_occ*n_vir].T
-    #         Y = U[:,n_occ*n_vir:].T
-    #         U1, U2 = TDDFT_MVP(X, Y)
-    #         U = np.vstack((U1, U2)).T
-    #         return U
-
-    #     return TDA_vind, TDDFT_vind
 
     def get_inter_contract_C(self, int_tensor, mo_coeff, mo_occ):
         '''
@@ -1521,117 +1421,46 @@ class TDDFT_ris(object):
         '''
 
         if self.RKS:
+            P = self.get_RKS_P()
+            mdpol = self.get_RKS_mdpol()
+
             if self.a_x != 0:
                 TDA_MVP, hdiag = self.get_RKS_TDA_hybrid_MVP()
-                P = self.get_RKS_P()
+
             elif self.a_x == 0:
                 TDA_MVP, hdiag = self.get_RKS_TDA_pure_MVP()
-                P = self.get_RKS_P()
+
 
         elif self.UKS:
             TDA_MVP, hdiag = self.get_UKS_TDA_MVP()
             P = self.get_UKS_P()
 
-
-        # print('min(hdiag)', min(hdiag)*parameter.Hartree_to_eV)
         energies, X = eigen_solver.Davidson(matrix_vector_product=TDA_MVP,
                                             hdiag=hdiag,
                                             N_states=self.nroots,
                                             conv_tol=self.conv_tol,
                                             max_iter=self.max_iter,
+                                            GS=self.GS,
                                             single=self.single)
-        energies = energies*parameter.Hartree_to_eV
-        # print('energies =', energies)
+        Xnorm = np.linalg.norm(np.dot(X, X.T) - np.eye(X.shape[0]))
+        print(f'check orthonormal of X: {Xnorm:.2e}')
 
-        # print('self.print_threshold', self.print_threshold)
         oscillator_strength = spectralib.get_spectra(energies=energies, 
-                                                       transition_vector= X, 
                                                        X=X/(2**0.5),
                                                        Y=None,
                                                        P=P, 
+                                                       mdpol=mdpol,
                                                        name=self.out_name+'_TDA_ris', 
                                                        RKS=self.RKS,
                                                        spectra=self.spectra,
                                                        print_threshold = self.print_threshold,
                                                        n_occ=self.n_occ if self.RKS else (self.n_occ_a, self.n_occ_b),
                                                        n_vir=self.n_vir if self.RKS else (self.n_vir_a, self.n_vir_b))
+        energies = energies*parameter.Hartree_to_eV
+
 
         return energies, X, oscillator_strength
-        # from pyscf.lib import davidson1
-        # TDA_vind, _  = self.get_vind()
 
-        # def TDA_diag_initial_guess(N_states, hdiag):
-        #     '''
-        #     m is the amount of initial guesses
-        #     '''
-        #     hdiag = hdiag.reshape(-1,)
-        #     V_size = hdiag.shape[0]
-        #     Dsort = hdiag.argsort()
-        #     energies = hdiag[Dsort][:N_states]
-        #     V = np.zeros((V_size, N_states))
-        #     for j in range(N_states):
-        #         V[Dsort[j], j] = 1.0
-        #     return V
-        
-        # initial = TDA_diag_initial_guess(self.nroots, hdiag).T
-        # converged, e, amps = davidson1(
-        #               aop=TDA_vind, x0=initial, precond=hdiag,
-        #               tol=self.conv_tol,
-        #               nroots=self.nroots, lindep=1e-14,
-        #               max_cycle=35,
-        #               max_space=1000)
-        # e*=parameter.Hartree_to_eV
-        # return converged, e, amps
-
-    # def kernel_TDDFT(self):
-        # '''
-        # use pyscf davidson solver to solve TDDFT
-        # but pyscf davidson solver is not relibale, so we use our own davidson solver
-        # '''
-    #     TDA_MVP, TDDFT_MVP, TDA_vind, TDDFT_vind, hdiag, Hdiag = self.get_vind()
-        #  def TDDFT_diag_initial_guess(N_states, hdiag):
-        #     '''
-        #     m is the amount of initial guesses
-        #     '''
-        #     hdiag = hdiag.reshape(-1,)
-        #     V_size = hdiag.shape[0]
-        #     Dsort = hdiag.argsort()
-        #     energies = hdiag[Dsort][:N_states]
-        #     print('energies =', energies)
-        #     V = np.zeros((V_size, N_states))
-        #     for j in range(N_states):
-        #         V[Dsort[j], j] = 1.0
-        #     V2 = np.zeros_like(V)
-        #     V_long = np.vstack((V, V2))
-        #     return V_long
-    #     initial = TDDFT_diag_initial_guess(self.nroots, hdiag).T
-    #     print('initial.shape',initial.shape)
-    #     converged, e, amps = davidson_nosym1(
-    #                   aop=TDDFT_vind, x0=initial, precond=Hdiag,
-    #                   tol=self.conv_tol,
-    #                   nroots=self.nroots, lindep=1e-14,
-    #                   max_cycle=35,
-    #                   max_space=10000)
-    #     e*=parameter.Hartree_to_eV
-    #     return converged, e, amps
-
-
-        # if self.pyscf_TDDFT_vind:
-        #     '''
-        #     invoke ab-initio TDDFT from PySCF and use our davidson solver
-        #     '''
-        #     name = 'TDDFT-abinitio'
-        #     def TDDFT_MVP(X, Y):
-        #         '''convert pyscf style (bra) to my style (ket)
-        #         return AX + BY and AY + BX'''
-        #         XY = np.vstack((X,Y)).T
-        #         U = self.pyscf_TDDFT_vind(XY)
-        #         n_occ*n_vir = U.shape[1]//2
-        #         U1 = U[:,:n_occ*n_vir].T
-        #         U2 = -U[:,n_occ*n_vir:].T
-        #         return U1, U2
-        # else:
-        #     name = 'TDDFT-ris'
     def kernel_TDDFT(self):     
         # math_helper.show_memory_info('At the beginning')
         if self.a_x != 0:
@@ -1644,32 +1473,9 @@ class TDDFT_ris(object):
             elif self.UKS:
                 P = self.get_UKS_P()
                 TDDFT_hybrid_MVP, hdiag = self.get_UKS_TDDFT_MVP()
-            # math_helper.show_memory_info('After get_TDDFT_MVP')
-            
 
-            # ''' debug '''
-            # from pyscf import tddft
-            # TDDFT_obj = tddft.TDDFT(self.mf)
-            # TDDFT_vind, Hdiag = TDDFT_obj.gen_vind(self.mf)
-            # def TDDFT_MVP(X, Y):
-            #     '''
-            #     return AX + BY and AY + BX'''
-            #     XY = np.hstack((X,Y))
-            #     U = TDDFT_vind(XY)
-            #     A_size = U.shape[1]//2
-            #     U1 = U[:,:A_size]
-            #     U2 = -U[:,A_size:]
-            #     return U1, U2
-
-            # energies, X, Y = eigen_solver.Davidson_Casida(matrix_vector_product=TDDFT_MVP, hdiag=hdiag,
-            #                                                 N_states=self.nroots,
-            #                                                 conv_tol=self.conv_tol,
-            #                                                 max_iter=self.max_iter,
-            #                                                 GS=self.GS,
-            #                                                 single=False)
-
-
-            energies, X, Y = eigen_solver.Davidson_Casida(matrix_vector_product=TDDFT_hybrid_MVP, hdiag=hdiag,
+            energies, X, Y = eigen_solver.Davidson_Casida(matrix_vector_product=TDDFT_hybrid_MVP, 
+                                                            hdiag=hdiag,
                                                             N_states=self.nroots,
                                                             conv_tol=self.conv_tol,
                                                             max_iter=self.max_iter,
@@ -1679,31 +1485,33 @@ class TDDFT_ris(object):
         elif self.a_x == 0:
             '''pure TDDFT'''
             if self.RKS:
-                TDDFT_pure_MVP, hdiag_sq = self.get_RKS_TDDFT_MVP()
+                TDDFT_pure_MVP, hdiag_sq = self.gen_RKS_TDDFT_pure_MVP()
                 P = self.get_RKS_P()
+                mdpol = self.get_RKS_mdpol()
 
             elif self.UKS:
                 TDDFT_pure_MVP, hdiag_sq = self.get_UKS_TDDFT_MVP()
                 P = self.get_UKS_P()
             # print('min(hdiag_sq)', min(hdiag_sq)**0.5*parameter.Hartree_to_eV)
-            energies_sq, Z = eigen_solver.Davidson(TDDFT_pure_MVP, hdiag_sq,
+            energies_sq, Z = eigen_solver.Davidson(matrix_vector_product=TDDFT_pure_MVP, 
+                                                hdiag=hdiag_sq,
                                                 N_states=self.nroots,
                                                 conv_tol=self.conv_tol,
                                                 max_iter=self.max_iter,
+                                                GS=self.GS,
                                                 single=self.single)
             
             # print('check norm of Z', np.linalg.norm(np.dot(Z.T,Z) - np.eye(Z.shape[1])))
             energies = energies_sq**0.5
-            Z = Z*energies**0.5
+            Z = (energies**0.5).reshape(-1,1) * Z
 
             X, Y = math_helper.XmY_2_XY(Z=Z, AmB_sq=hdiag_sq, omega=energies)
 
-        XY_norm_check = np.linalg.norm( (X @ X.T - Y @ Y.T) - np.eye(self.nroots) )
+        XY_norm_check = np.linalg.norm( (np.dot(X, X.T) - np.dot(Y, Y.T)) - np.eye(self.nroots) )
         print(f'check norm of X^TX - Y^YY - I = {XY_norm_check:.2e}')
 
     
         oscillator_strength = spectralib.get_spectra(energies=energies, 
-                                                    transition_vector=X+Y, 
                                                     X=X/(2**0.5),
                                                     Y=Y/(2**0.5),
                                                     P=P, 
@@ -1715,6 +1523,7 @@ class TDDFT_ris(object):
                                                     n_occ=self.n_occ if self.RKS else (self.n_occ_a, self.n_occ_b),
                                                     n_vir=self.n_vir if self.RKS else (self.n_vir_a, self.n_vir_b))
         energies = energies*parameter.Hartree_to_eV
-        # print('energies =', energies)
+
+
         return energies, X, Y, oscillator_strength
 

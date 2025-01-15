@@ -2,7 +2,7 @@
 import numpy as np
 from pyscf_TDDFT_ris import math_helper
 from pyscf_TDDFT_ris import parameter
-from scipy.sparse import csr_matrix
+import scipy
 import time
 
 
@@ -11,6 +11,7 @@ def Davidson(matrix_vector_product,
                     N_states=20,
                     conv_tol=1e-5,
                     max_iter=25,
+                    GS=False,
                     single=False ):
     '''
     AX = XΩ
@@ -28,15 +29,29 @@ def Davidson(matrix_vector_product,
     size_new = min([N_states+8, 2*N_states, A_size])
 
     max_N_mv = max_iter*N_states + size_new
-    V_holder = np.zeros((A_size, max_N_mv),dtype=np.float32 if single else np.float64)
+    V_holder = np.zeros((max_N_mv, A_size),dtype=np.float32 if single else np.float64)
     W_holder = np.zeros_like(V_holder)
     sub_A_holder = np.zeros((max_N_mv,max_N_mv),dtype=np.float32 if single else np.float64)
+
     '''
     generate the initial guesss and put into the basis holder V_holder
     '''
     V_holder = math_helper.TDA_diag_initial_guess(V_holder=V_holder, N_states=size_new, hdiag=hdiag)
 
-    # V_holder[:,:size_new] = initial_vectors[:,:]
+    if GS == True:
+        print('Using Gram-Schmidt orthogonalization')
+        fill_holder = math_helper.Gram_Schmidt_fill_holder
+    else:
+        print('Using non-orthogonalized Krylov subspace (nKs) method.')
+
+        citation = ''' 
+        Furche, Filipp, Brandon T. Krull, Brian D. Nguyen, and Jake Kwon. 
+        Accelerating molecular property calculations with nonorthonormal Krylov space methods.
+        The Journal of Chemical Physics 144, no. 17 (2016).
+        '''
+        print(citation)
+        fill_holder = math_helper.nKs_fill_holder
+        s_holder = np.zeros_like(sub_A_holder)
 
     subcost = 0
     MVcost = 0
@@ -47,76 +62,84 @@ def Davidson(matrix_vector_product,
     for ii in range(max_iter):
     
         MV_start = time.time()
-        W_holder[:, size_old:size_new] = matrix_vector_product(V_holder[:,size_old:size_new])
+        W_holder[size_old:size_new, :] = matrix_vector_product(V_holder[size_old:size_new, :])
         MV_end = time.time()
         iMVcost = MV_end - MV_start
         MVcost += iMVcost
 
         subgencost_start = time.time()
-        sub_A_holder = math_helper.gen_VW(sub_A_holder, V_holder, W_holder, size_old, size_new)
+        sub_A_holder = math_helper.gen_VW(sub_A_holder, V_holder, W_holder, size_old, size_new, symmetry=True)
         sub_A = sub_A_holder[:size_new,:size_new]
+
         subgencost_end = time.time()
         subgencost += subgencost_end - subgencost_start
-        sub_A = math_helper.utriangle_symmetrize(sub_A)
+        # sub_A = math_helper.utriangle_symmetrize(sub_A)
         # sub_A = math_helper.symmetrize(sub_A)
 
         '''
         Diagonalize the subspace Hamiltonian, and sorted.
-        sub_eigenvalue[:N_states] are smallest N_states eigenvalues
+        omega[:N_states] are smallest N_states eigenvalues
         '''
 
         subcost_start = time.time()
-        sub_eigenvalue, sub_eigenket = np.linalg.eigh(sub_A)
-        sub_eigenvalue = sub_eigenvalue[:N_states]
-        sub_eigenket = sub_eigenket[:,:N_states]
+        if GS:
+            omega, x = np.linalg.eigh(sub_A)
+        else: 
+            s_holder = math_helper.gen_VW(s_holder, V_holder, V_holder, size_old, size_new, symmetry=False)
+            overlap_s = s_holder[:size_new,:size_new]
+            omega, x = scipy.linalg.eigh(sub_A, overlap_s)
+
+        omega = omega[:N_states]
+        x = x[:,:N_states]
         subcost_end = time.time()
         subcost += subcost_end - subcost_start
 
         full_cost_start = time.time()
-        full_guess = np.dot(V_holder[:,:size_new], sub_eigenket)
+        # full_X = np.dot(V_holder[:size_new, :], x)
+        full_X = np.dot(x.T, V_holder[:size_new, :])
         full_cost_end = time.time()
         full_cost += full_cost_end - full_cost_start
 
-        AV = np.dot(W_holder[:,:size_new], sub_eigenket)
-        residual = AV - full_guess * sub_eigenvalue
+        AV = np.dot(x.T, W_holder[:size_new, :])
+        residual = AV - omega.reshape(-1, 1) * full_X
 
-        r_norms = np.linalg.norm(residual, axis=0).tolist()
+        r_norms = np.linalg.norm(residual, axis=1)
         max_norm = np.max(r_norms)
-        print('{:<3d}  {:<10.4e} {:<5d}'.format(ii+1, max_norm, sub_A.shape[0]))
+        print(f'{ii+1:<3d}  {max_norm:<10.4e} {sub_A.shape[0]:<5d}')
         if max_norm < conv_tol or ii == (max_iter-1):
             break
 
-        index = [r_norms.index(i) for i in r_norms if i>conv_tol]
-
-        new_guess = math_helper.TDA_diag_preconditioner(residual = residual[:,index],
-                                            sub_eigenvalue = sub_eigenvalue[index],
-                                            hdiag = hdiag)
+        index_bool = r_norms > conv_tol
+        # print('index_bool', index_bool)
+        new_guess = math_helper.TDA_diag_preconditioner(residual=residual[index_bool,:],
+                                                        omega=omega[index_bool],
+                                                        hdiag=hdiag)
 
         fill_holder_cost_start = time.time()
         size_old = size_new
-        V_holder, size_new = math_helper.Gram_Schmidt_fill_holder(V_holder, size_old, new_guess, double=True)
+        V_holder, size_new = fill_holder(V_holder, size_old, new_guess)
         fill_holder_cost_end = time.time()
         fill_holder_cost += fill_holder_cost_end - fill_holder_cost_start
 
-    # energies = sub_eigenvalue*parameter.Hartree_to_eV
+    # energies = omega*parameter.Hartree_to_eV
 
     D_end = time.time()
     Dcost = D_end - D_start
 
-    if ii == max_iter-1:
-        print('=== TDA Failed Due to Iteration Limit ===')
+    if ii == max_iter-1 and max_norm >= conv_tol:
+        print(f'=== Warning: Davidson not converged below {conv_tol:.2e} Due to Iteration Limit ===')
         print('current residual norms', r_norms)
         
     # print('energies:')
     # print(energies)
-    print('Finished in {:d} steps, {:.2f} seconds'.format(ii+1, Dcost))
-    print('Maximum residual norm = {:.2e}'.format(max_norm))
-    print('Final subspace size = {:d}'.format(sub_A.shape[0]))
+    print(f'Finished in {ii+1:d} steps, {Dcost:.2f} seconds')
+    print(f'Maximum residual norm = {max_norm:.2e}')
+    print(f'Final subspace size = {sub_A.shape[0]:d}')
     for enrty in ['MVcost','fill_holder_cost','subgencost','subcost','full_cost']:
         cost = locals()[enrty]
-        print("{:<10} {:<5.4f}s {:<5.2%}".format(enrty, cost, cost/Dcost))
+        print(f"{enrty:<10} {cost:<5.4f} sec {cost/Dcost:<5.2%}")
     print('========== Davidson Diagonalization Done ==========')
-    return sub_eigenvalue, full_guess
+    return omega, full_X
 
 def Davidson_Casida(matrix_vector_product,
                         hdiag,
@@ -193,10 +216,11 @@ def Davidson_Casida(matrix_vector_product,
         The Journal of Chemical Physics 144, no. 17 (2016).
         '''
         print(citation)
-        fill_holder = math_helper.nKs_fill_holder
+        fill_holder = math_helper.VW_nKs_fill_holder
 
+    # print('V_holder.dtype', V_holder.dtype)
     for ii in range(max_iter):
-
+        print(f'iter: {ii+1:<3d}', end='')
         # print('size_old =', size_old)
         # print('size_new =', size_new)
         MV_start = time.time()
@@ -250,11 +274,12 @@ def Davidson_Casida(matrix_vector_product,
         U1 = U1_holder[:size_new, :]
         U2 = U2_holder[:size_new, :]
 
-        X_full = x.T @ V + y.T @ W
-        Y_full = x.T @ W + y.T @ V
+        X_full = np.dot(x.T, V) + np.dot(y.T, W)
+        Y_full = np.dot(x.T, W) + np.dot(y.T, V)
 
-        R_x = x.T @ U1 + y.T @ U2 - omega.reshape(-1, 1) * X_full
-        R_y = x.T @ U2 + y.T @ U1 + omega.reshape(-1, 1) * Y_full
+
+        R_x = np.dot(x.T, U1) + np.dot(y.T, U2) - omega.reshape(-1, 1) * X_full
+        R_y = np.dot(x.T, U2) + np.dot(y.T, U1) + omega.reshape(-1, 1) * Y_full
 
         full_cost_end = time.time()
         full_cost += full_cost_end - full_cost_start
@@ -265,7 +290,7 @@ def Davidson_Casida(matrix_vector_product,
         # print('r_norms.shape', len(r_norms))
         max_norm = np.max(r_norms)
         # print('{:<3d}  {:<10.4e}'.format(ii+1, max_norm))
-        print(f'iter: {ii+1:<3d}  max|R|: {max_norm:<10.2e} new_vectors: {size_new - size_old}  MVP: {MV_end - MV_start:.1f} seconds')
+        print(f' max|R|: {max_norm:<10.2e} new_vectors: {size_new - size_old}  MVP: {MV_end - MV_start:.1f} seconds')
 
         if max_norm < conv_tol or ii == (max_iter -1):
             # math_helper.show_memory_info('After last Davidson iteration')
@@ -302,7 +327,7 @@ def Davidson_Casida(matrix_vector_product,
     davidson_cost = time.time() - davidson_start
 
     if ii == (max_iter -1) and max_norm >= conv_tol:
-        print('=== TDDFT eigen solver not converged due to max iteration mimit ===')
+        print(f'===  Warning: TDDFT eigen solver not converged below {conv_tol:.2e} due to max iteration mimit ===')
         print('max residual norms', np.max(r_norms))
 
     print(f'Finished in {ii+1:d} steps, {davidson_cost:.2f} seconds')

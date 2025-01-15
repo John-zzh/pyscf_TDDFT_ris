@@ -50,7 +50,7 @@ def _charge_center(mol):
     return np.einsum('z,zr->r', charges, coords)/charges.sum()
 
 
-def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001, mdpol=None):
+def get_spectra(energies, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print_threshold=0.001, mdpol=None):
     '''
     E = hν
     c = λ·ν
@@ -85,22 +85,23 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
     for TDA,   f = 2/3 E 2*|<P|X>|**2                   
     for TDDFT, f = 2/3 E 2*|<P|X+Y>|**2     
     P is transition dipole 
-    transition_vector is eigenvector of A matrix
+    TDA:   transition_vector is X*2**0.5 
+    TDDFT: transition_vector is (X*2**0.5 + Y*2**0.5)
 
-    energies in Hartree
+    energies are in Hartree
     '''
     energies = energies.reshape(-1,)
-    # transition_vector = transition_vector/np.linalg.norm(transition_vector, axis=0)
+
     eV = energies.copy() * parameter.Hartree_to_eV
     # print(energies, energies.shape)
     cm_1 = eV*8065.544
     nm = 1240.7011/eV
 
-    # hartree = energies/parameter.Hartree_to_eV
-    print('P.shape:', P.shape)
-    print('transition_vector.shape:', transition_vector.shape)
 
-    trans_dipole_moment = -transition_vector @ P.T
+    if isinstance(Y, np.ndarray):
+        trans_dipole_moment = -np.dot(X*2**0.5 + Y*2**0.5, P.T)
+    else: 
+        trans_dipole_moment = -np.dot(X*2**0.5, P.T)
     print('trans_dipole_moment')
     print(trans_dipole_moment)
     if RKS:
@@ -110,8 +111,10 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
         '''
         oscillator_strength = 2/3 * energies * np.sum(2 * trans_dipole_moment**2, axis=1)
 
-
-    trans_magnetic_moment = -(X*2**0.5 - Y*2**0.5) @ mdpol.T 
+    if isinstance(Y, np.ndarray):
+        trans_magnetic_moment = -np.dot((X*2**0.5 - Y*2**0.5), mdpol.T )
+    else:
+        trans_magnetic_moment = -np.dot(X*2**0.5, mdpol.T) 
     print('trans_magnetic_moment')
     print(trans_magnetic_moment)
     rotatory_strength = 500*np.sum(2*trans_dipole_moment * trans_magnetic_moment, axis=1)/2
@@ -156,8 +159,8 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
             with open(filename, 'w') as f:
                 
                 for state in range(n_state):
-                    print(f" Excited State  {state+1:4d}:      Singlet-A      {eV[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=0.000")
-                    f.write(f" Excited State  {state+1:4d}   1    {eV[state]:>.4f} \n")
+                    print(f" Excited State{state+1:4d}:      Singlet-A      {eV[state]:>.4f} eV  {nm[state]:>.2f} nm  f={oscillator_strength[state]:>.4f}   <S**2>=0.000")
+                    f.write(f" Excited State{state+1:4d}   1    {eV[state]:>.4f} \n")
                     results = print_coeff(state, X, '->', n_occ=n_occ, n_vir=n_vir, print_threshold=print_threshold)
                     # print(*results, sep='\n')
 
@@ -168,7 +171,7 @@ def get_spectra(energies, transition_vector, P, X, Y, name, RKS, n_occ, n_vir,  
                     f.write('\n'.join(results) + '\n\n')
             print('transition coefficient data written to', filename)
         else:
-            print('UKS transition coefficient not implemenetd yet')
+            print('printing UKS transition coefficient not implemented yet')
 
 
     return oscillator_strength

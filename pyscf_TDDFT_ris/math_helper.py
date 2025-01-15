@@ -14,19 +14,20 @@ def TDA_diag_initial_guess(V_holder, N_states, hdiag):
     initial guess set as 1.0, everywhere else set as 0.0
     '''
     hdiag = hdiag.reshape(-1,)
-    Dsort = hdiag.argsort()
-    for j in range(N_states):
-        V_holder[j, Dsort[j]] = 1.0
+    Dsort = hdiag.argsort()[:N_states]
+    V_holder[np.arange(N_states), Dsort] = 1.0
     return V_holder
 
-def TDA_diag_preconditioner(residual, sub_eigenvalue, hdiag ):
+def TDA_diag_preconditioner(residual, omega, hdiag):
     '''
     DX - XΩ = r
     '''
 
-    N_states = np.shape(residual)[1]
-    t = 1e-8
-    D = np.repeat(hdiag.reshape(-1,1), N_states, axis=1) - sub_eigenvalue
+    N_states = np.shape(residual)[0]
+    t = 1e-14
+
+    omega = omega.reshape(-1,1)
+    D = np.repeat(hdiag.reshape(1,-1), N_states, axis=0) - omega
     '''
     force all small values not in [-t,t]
     '''
@@ -40,7 +41,7 @@ def TDDFT_diag_preconditioner(R_x, R_y, omega, hdiag):
     preconditioners for each corresponding residual (state)
     '''
     N_states = R_x.shape[0]
-    t = 1e-14
+    t = 1e-8
     d = np.repeat(hdiag.reshape(1,-1), N_states, axis=0)
 
     omega = omega.reshape(-1,1)
@@ -112,9 +113,9 @@ def Gram_Schmidt_bvec(A, bvec):
        b = b - A*(A.T*b)
        suppose A is orthonormalized
     '''
-    if A.shape[1] != 0:
-        projections_coeff = np.dot(A.T, bvec)
-        bvec -= np.dot(A, projections_coeff)
+    if A.shape[0] != 0:
+        projections_coeff = np.dot(A, bvec.T)
+        bvec -= np.dot(projections_coeff.T, A)
     return bvec
 
 def VW_Gram_Schmidt(x, y, V, W):
@@ -228,13 +229,13 @@ size_new    |------------------------------------------------|
     V_current = V_holder[:size_new,:]
     W_new = W_holder[size_old:size_new, :]
 
-    sub_A_holder[:size_new, size_old:size_new] = V_current @ W_new.T
+    sub_A_holder[:size_new, size_old:size_new] = np.dot(V_current, W_new.T)
 
     if symmetry:
-        pass
-        # sub_A_holder[size_old:size_new, :size_old] = sub_A_holder[:size_old, size_old:size_new].T
+        # pass
+        sub_A_holder[size_old:size_new, :size_old] = sub_A_holder[:size_old, size_old:size_new].T
     else:
-        sub_A_holder[size_old:size_new, :size_old] = V_holder[size_old:size_new,:] @ W_holder[:size_old,:].T
+        sub_A_holder[size_old:size_new, :size_old] = np.dot(V_holder[size_old:size_new,:], W_holder[:size_old,:].T)
 
     return sub_A_holder
 
@@ -305,22 +306,41 @@ def gen_sub_ab(V_holder, W_holder, U1_holder, U2_holder,
     return sub_A, sub_B, sigma, pi, VU1_holder, WU2_holder, VU2_holder, WU1_holder, VV_holder, WW_holder, VW_holder
 
 
-def Gram_Schmidt_fill_holder(V, count, vecs, double = True):
+def Gram_Schmidt_fill_holder(V, count, vecs, double = False):
     '''V is a vectors holder
        count is the amount of vectors that already sit in the holder
        nvec is amount of new vectors intended to fill in the V
        count will be final amount of vectors in V
     '''
-    nvec = np.shape(vecs)[1]
+    nvec = np.shape(vecs)[0]
     for j in range(nvec):
-        vec = vecs[:, j].reshape(-1,1)
-        vec = Gram_Schmidt_bvec(V[:, :count], vec)   #single orthonormalize
+        vec = vecs[j, :].reshape(1,-1)
+        vec = Gram_Schmidt_bvec(V[:count, :], vec)   #single orthonormalize
         if double == True:
-            vec = Gram_Schmidt_bvec(V[:, :count], vec)   #double orthonormalize
+            vec = Gram_Schmidt_bvec(V[:count, :], vec)   #double orthonormalize
         norm = np.linalg.norm(vec)
         if  norm > 1e-14:
             vec = vec/norm
-            V[:, count] = vec[:,0]
+            V[count,:] = vec[0,:]
+            count += 1
+        # else:
+        #     print('zero vector')
+    new_count = count
+    return V, new_count
+
+def nKs_fill_holder(V, count, vecs, double = True):
+    '''V is a vectors holder
+       count is the amount of vectors that already sit in the holder
+       nvec is amount of new vectors intended to fill in the V
+       count will be final amount of vectors in V
+    '''
+    nvec = np.shape(vecs)[0]
+    for j in range(nvec):
+        vec = vecs[j, :].reshape(1,-1)
+        norm = np.linalg.norm(vec)
+        if  norm > 1e-14:
+            vec = vec/norm
+            V[count,:] = vec[0,:]
             count += 1
     new_count = count
     return V, new_count
@@ -407,7 +427,7 @@ def VW_Gram_Schmidt_fill_holder(V_holder, W_holder, m, X_new, Y_new, double=Fals
 
         x_tmp,y_tmp = S_symmetry_orthogonal(x_tmp,y_tmp)
 
-        xy_norm = (x_tmp @ x_tmp.T + y_tmp @ y_tmp.T)**0.5
+        xy_norm = (np.dot(x_tmp, x_tmp.T) + np.dot(y_tmp, y_tmp.T))**0.5
 
 
         if  xy_norm > 1e-14:
@@ -424,13 +444,13 @@ def VW_Gram_Schmidt_fill_holder(V_holder, W_holder, m, X_new, Y_new, double=Fals
     return V_holder, W_holder, new_m
 
 
-def nKs_fill_holder(V_holder, W_holder, m, X_new, Y_new, double=False):
+def VW_nKs_fill_holder(V_holder, W_holder, m, X_new, Y_new, double=False):
     nvec = X_new.shape[0]
     for j in range(0, nvec):
         x_tmp = X_new[j,:].reshape(1,-1)
         y_tmp = Y_new[j,:].reshape(1,-1)
         x_tmp,y_tmp = S_symmetry_orthogonal(x_tmp,y_tmp)
-        xy_norm = (x_tmp @ x_tmp.T + y_tmp @ y_tmp.T)**0.5
+        xy_norm = (np.dot(x_tmp, x_tmp.T) + np.dot(y_tmp, y_tmp.T))**0.5
         x_tmp = x_tmp/xy_norm
         y_tmp = y_tmp/xy_norm
 
@@ -617,12 +637,14 @@ def XmY_2_XY(Z, AmB_sq, omega):
         X-Y = (A-B)^-1/2 Z
         X+Y = (A-B)^1/2 Z omega^-1 
     '''
-    AmB_sq = AmB_sq.reshape(-1,1)
+    AmB_sq = AmB_sq.reshape(1,-1)
 
     '''AmB = (A - B)'''
     AmB = AmB_sq**0.5
 
     XmY = AmB**(-0.5) * Z
+
+    omega = omega.reshape(-1,1)
     XpY = (AmB * XmY)/omega
 
     X = (XpY + XmY)/2
@@ -677,7 +699,7 @@ def gen_VW_f_order(sub_A_holder, V_holder, W_holder, size_old, size_new, symmetr
 
     V_current = V_holder[:,:size_new]
     W_new = W_holder[:,size_old:size_new]
-    sub_A_holder[:size_new,size_old:size_new] = V_current.T @ W_new
+    sub_A_holder[:size_new,size_old:size_new] = np.dot(V_current.T, W_new)
 
     if symmetry == True:
         sub_A_holder = block_symmetrize(sub_A_holder,size_old,size_new)
@@ -689,7 +711,7 @@ def gen_VW_f_order(sub_A_holder, V_holder, W_holder, size_old, size_new, symmetr
             '''
             V_new = V_holder[:,size_old:size_new]
             W_old = W_holder[:,:size_old]
-            sub_A_holder[size_old:size_new,:size_old] = V_new.T @ W_old
+            sub_A_holder[size_old:size_new,:size_old] = np.dot(V_new.T, W_old)
         elif up_triangle == True:
             '''
             otherwise juts let the lower triangle be zeros

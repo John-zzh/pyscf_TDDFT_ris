@@ -111,7 +111,6 @@ if __name__ == '__main__':
                     print_threshold=args.print_threshold)           
 
     if args.TDA == True:
-        raise ValueError('TDA has bugs, please use TDDFT instead')
         energies, X, oscillator_strength = td.kernel_TDA()
     else:
         energies, X, Y, oscillator_strength = td.kernel_TDDFT()
