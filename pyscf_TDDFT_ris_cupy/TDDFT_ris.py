@@ -233,7 +233,7 @@ def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, max_m
     # print('type(eri3c_erf)', type(eri3c_erf))
     # print('callable(eri3c_K) and callable(eri3c_erf)', callable(eri3c_K),  callable(eri3c_erf))
 
-    if isinstance(eri3c_K, cp.ndarray) and isinstance(eri3c_erf, cp.ndarray):
+    if isinstance(eri3c_K, np.ndarray) and isinstance(eri3c_erf, np.ndarray):
         eri3c_RSH = alpha * eri3c_K + beta * eri3c_erf
         return eri2c_RSH, eri3c_RSH
 
@@ -251,7 +251,7 @@ def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, max_m
                     break
         return eri2c_RSH, eri3c_RSH_generator
     else:
-        raise ValueError('eri3c_K and eri3c_erf must be both cp.ndarray or callable')
+        raise ValueError('eri3c_K and eri3c_erf must be both np.ndarray or callable')
 
     
 
@@ -297,7 +297,7 @@ def get_pre_Tpq_one_batch(eri3c, C_p, C_q):
     C_p = C_p.get()
     C_q = C_q.get()
 
-    print('type(eri3c), type(C_p), type(C_q)', type(eri3c), type(C_p), type(C_q))
+    # print('type(eri3c), type(C_p), type(C_q)', type(eri3c), type(C_p), type(C_q))
     t_satrt = time.time()
 
     tt = time.time()
@@ -328,7 +328,7 @@ def get_pre_Tpq_one_batch(eri3c, C_p, C_q):
     eri3c_C_p = eri3c_C_p.reshape(nauxbf*n_p, nbf)
     pre_T_pq = np.dot(eri3c_C_p, C_q)
     pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
-    pre_T_pq = cp.asarray(pre_T_pq)
+    # pre_T_pq = cp.asarray(pre_T_pq)
     print(f'    pre_T_pq time: {time.time() - t_satrt:.1f} seconds')
     return pre_T_pq
 
@@ -372,9 +372,7 @@ def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
             i += 1
             # Process each batch of eri3c
             batch_size = eri3c_batch.shape[0]
-            pre_T_pq[aux_offset:aux_offset + batch_size, :, :] = get_pre_Tpq_one_batch(
-                eri3c_batch, C_p, C_q
-            )
+            pre_T_pq[aux_offset:aux_offset + batch_size, :, :] = get_pre_Tpq_one_batch(eri3c_batch, C_p, C_q)
             aux_offset += batch_size  # Update the offset for the next batch
 
     else:
