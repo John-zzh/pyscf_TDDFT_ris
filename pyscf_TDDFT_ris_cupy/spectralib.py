@@ -118,18 +118,19 @@ def get_spectra(energies, P, X, Y, name, RKS, n_occ, n_vir,  spectra=True, print
     print('rotatory_strength:')
     print(rotatory_strength)
 
+    
+
+
+    entry = [eV, nm, cm_1, oscillator_strength]
+    data = cp.zeros((eV.shape[0],len(entry)))
+    for i in range(len(entry)):
+        data[:,i] = entry[i]
+    print('================================================')
+    print('eV       nm       cm^-1    oscillator strength')
+    for row in range(data.shape[0]):
+        print(f'{data[row,0]:<8.3f} {data[row,1]:<8.0f} {data[row,2]:<8.0f} {data[row,3]:<8.8f}')
+
     if spectra == True:
-
-
-        entry = [eV, nm, cm_1, oscillator_strength]
-        data = cp.zeros((eV.shape[0],len(entry)))
-        for i in range(len(entry)):
-            data[:,i] = entry[i]
-        print('================================================')
-        print('eV       nm       cm^-1    oscillator strength')
-        for row in range(data.shape[0]):
-            print(f'{data[row,0]:<8.3f} {data[row,1]:<8.0f} {data[row,2]:<8.0f} {data[row,3]:<8.8f}')
-
         filename = name + '_eV_os_Multiwfn.txt'
         with open(filename, 'w') as f:
             cp.savetxt(f, data[:,(0,3)], fmt='%.5f', header=f'{len(energies)} 1', comments='')

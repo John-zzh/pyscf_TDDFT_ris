@@ -328,7 +328,7 @@ def Davidson_Casida(matrix_vector_product,
     davidson_cost = time.time() - davidson_start
 
     if ii == (max_iter -1) and max_norm >= conv_tol:
-        print(f'===  Warning: TDDFT eigen solver not converged below {conv_tol:.2e} due to max iteration mimit ===')
+        print(f'===  Warning: TDDFT eigen solver not converged below {conv_tol:.2e} due to max iteration limit ===')
         print('max residual norms', cp.max(r_norms))
 
     print(f'Finished in {ii+1:d} steps, {davidson_cost:.2f} seconds')

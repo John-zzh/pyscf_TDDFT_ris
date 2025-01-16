@@ -14,7 +14,7 @@ def TDA_diag_initial_guess(V_holder, N_states, hdiag):
     sort out the smallest value of hdiag, the corresponding position in the 
     initial guess set as 1.0, everywhere else set as 0.0
     '''
-    print('type(hdiag)', type(hdiag))
+    # print('type(hdiag)', type(hdiag))
     hdiag = hdiag.reshape(-1,)
     Dsort = hdiag.argsort()[:N_states]
     V_holder[cp.arange(N_states), Dsort] = 1.0
