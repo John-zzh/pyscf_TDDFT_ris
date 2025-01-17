@@ -207,7 +207,7 @@ def get_int3c2e(mol, auxmol, aosym=True, omega=None):
     int3c = intopt.unsort_orbitals(int3c, aux_axis=[0], axis=[1,2])
     return int3c
 
-def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK', aosym=True, omega=None, alpha=None, beta=None):
+def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK', aosym=True, omega=None, alpha=None, beta=None, group_size=BLKSIZE, group_size_aux=AUXBLKSIZE):
     """
     (3c2e_{Puv}, C_{up}, C_{vq} -> Ppq)。
 
@@ -222,7 +222,7 @@ def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK'
     """
 
     intopt = VHFOpt(mol, auxmol, 'int2e')
-    intopt.build(aosym=aosym, group_size=BLKSIZE, group_size_aux=AUXBLKSIZE)
+    intopt.build(aosym=aosym, group_size=group_size, group_size_aux=group_size_aux)
 
     nao = mol.nao
     naux = auxmol.nao
@@ -254,6 +254,7 @@ def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK'
             lj = intopt.angular[cpj]
          
             int3c_slice_blk = get_int3c2e_slice(intopt, cp_ij_id, cp_kl_id, omega=0)
+            int3c_slice_blk = cp.asarray(int3c_slice_blk, dtype=cp.float32, order='C')
 
             if not mol.cart:
                 int3c_slice_blk = cart2sph(int3c_slice_blk, axis=1, ang=lj)
@@ -262,6 +263,7 @@ def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK'
 
             if omega and omega != 0:
                 int3c_slice_blk_omega = get_int3c2e_slice(intopt, cp_ij_id, cp_kl_id, omega=omega)
+                int3c_slice_blk_omega = cp.asarray(int3c_slice_blk_omega, dtype=cp.float32, order='C')
                 if not mol.cart:
                     int3c_slice_blk_omega = cart2sph(int3c_slice_blk_omega, axis=1, ang=lj)
                     int3c_slice_blk_omega = cart2sph(int3c_slice_blk_omega, axis=2, ang=li)
@@ -430,7 +432,8 @@ class TDDFT_ris(object):
                 print_threshold: float = 0.05,
                 GS: bool = False,
                 single: bool = False,
-                max_mem_mb: int = 8000,):
+                group_size: int = 10000,
+                group_size_aux: int = 256,):
 
         self.single = single
         if single == True:
@@ -462,8 +465,8 @@ class TDDFT_ris(object):
         self.out_name = out_name
         self.print_threshold = print_threshold
         self.GS = GS
-        
-        self.max_mem_mb = max_mem_mb
+        self.group_size = group_size
+        self.group_size_aux = group_size_aux
         print('self.nroots', self.nroots)
         print('use single precision?', self.single)
 
@@ -614,7 +617,8 @@ class TDDFT_ris(object):
         alpha = self.alpha
         beta = self.beta
         
-
+        group_size = self.group_size
+        group_size_aux = self.group_size_aux
 
         print('==================== RIJ ====================')
         tt = time.time()
@@ -632,7 +636,9 @@ class TDDFT_ris(object):
                                             C_q=C_vir_notrunc, 
                                             lower_inv_eri2c=lower_inv_eri2c_J,
                                             calc="J", 
-                                            omega=0)
+                                            omega=0,
+                                            group_size=group_size, 
+                                            group_size_aux=group_size_aux)
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
 
         print('==================== RIK ====================')
@@ -652,13 +658,15 @@ class TDDFT_ris(object):
         print(f'T_ab_K is going to take {auxmol_K.nao_nr() * rest_vir * rest_vir * unit / (1024 ** 2):.0f} MB memory')
         
         T_ij_K, T_ab_K = compute_Tpq_on_gpu_general(mol, auxmol_K, 
-                                                            C_p=C_occ_Ktrunc, 
-                                                            C_q=C_vir_Ktrunc, 
-                                                            lower_inv_eri2c=lower_inv_eri2c_K, 
-                                                            calc='K', 
-                                                            omega=omega,
-                                                            alpha=alpha, 
-                                                            beta=beta)
+                                                    C_p=C_occ_Ktrunc, 
+                                                    C_q=C_vir_Ktrunc, 
+                                                    lower_inv_eri2c=lower_inv_eri2c_K, 
+                                                    calc='K', 
+                                                    omega=omega,
+                                                    alpha=alpha, 
+                                                    beta=beta,
+                                                    group_size = group_size,
+                                                    group_size_aux = group_size_aux)
 
         print(f' T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
 
@@ -723,7 +731,8 @@ class TDDFT_ris(object):
         alpha = self.alpha
         beta = self.beta
         
-
+        group_size = self.group_size
+        group_size_aux = self.group_size_aux
 
         
         print('==================== RIJ ====================')
@@ -742,7 +751,9 @@ class TDDFT_ris(object):
                                             C_q=C_vir_notrunc, 
                                             lower_inv_eri2c=lower_inv_eri2c_J,
                                             calc="J", 
-                                            omega=0)
+                                            omega=0,
+                                            group_size = group_size,
+                                            group_size_aux = group_size_aux)
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
 
         print('==================== RIK ====================')
@@ -769,7 +780,9 @@ class TDDFT_ris(object):
                                                             calc='JK', 
                                                             omega=omega,
                                                             alpha=alpha, 
-                                                            beta=beta)
+                                                            beta=beta,
+                                                            group_size = group_size,
+                                                            group_size_aux = group_size_aux)
 
         print(f'T_ia_K T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
 
@@ -867,6 +880,9 @@ class TDDFT_ris(object):
 
         J_fit = self.J_fit
 
+        group_size = self.group_size
+        group_size_aux = self.group_size_aux
+
         print('==================== RIJ ====================')
         tt = time.time()
 
@@ -882,7 +898,9 @@ class TDDFT_ris(object):
                                             C_q=C_vir_notrunc, 
                                             lower_inv_eri2c=lower_inv_eri2c_J,
                                             calc="J", 
-                                            omega=0)
+                                            omega=0,
+                                            group_size = self.group_size,
+                                            group_size_aux = self.group_size_aux,)
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
 
  
@@ -926,6 +944,9 @@ class TDDFT_ris(object):
 
         J_fit = self.J_fit
 
+        group_size = self.group_size
+        group_size_aux = self.group_size_aux
+
         print('==================== RIJ ====================')
         tt = time.time()
 
@@ -941,7 +962,9 @@ class TDDFT_ris(object):
                                             C_q=C_vir_notrunc, 
                                             lower_inv_eri2c=lower_inv_eri2c_J,
                                             calc="J", 
-                                            omega=0)
+                                            omega=0,
+                                            group_size = self.group_size,
+                                            group_size_aux = self.group_size_aux)
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
  
         hdiag_sqrt_MVP = gen_hdiag_MVP(hdiag=hdiag**0.5, n_occ=n_occ, n_vir=n_vir)

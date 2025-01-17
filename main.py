@@ -28,6 +28,9 @@ def gen_args():
     parser.add_argument('-K_fit',   '--K_fit',       type=str,  default='s',    choices=['s', 'sp', 'spd'],  help='K fitting basis')
     parser.add_argument('-M',      '--max_mem_mb',   type=int,  default=8000,     help='maximum memory in MB')
 
+    parser.add_argument('--group_size',              type=int,  default=10000,     help='group_size in AO direction')
+    parser.add_argument('--group_size_aux',          type=int,  default=256,     help='group_size in auxAO direction')
+
     parser.add_argument('-Ktrunc', '--Ktrunc',       type=float,  default=40,     help='eV truncaion threshold for the MO in K')
 
     parser.add_argument('-GPU', '--GPU',           type=str2bool,  default=False,     help='use GPU')
@@ -124,10 +127,11 @@ if __name__ == '__main__':
                         alpha=args.alpha,
                         beta=args.beta,
                         Ktrunc=args.Ktrunc,
-                        max_mem_mb=args.max_mem_mb,
                         conv_tol=args.conv_tol,
                         nroots=args.nroots, 
                         single=args.single,
+                        group_size=args.group_size,
+                        group_size_aux=args.group_size_aux,
                         GS=args.GS,
                         max_iter=args.max_iter,
                         out_name=args.spectraoutname,
