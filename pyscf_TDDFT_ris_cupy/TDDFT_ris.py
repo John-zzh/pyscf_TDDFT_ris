@@ -647,7 +647,7 @@ class TDDFT_ris(object):
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
 
         print('==================== RIK ====================')
-
+        tt = time.time()
         if K_fit == J_fit and (omega == 0 or omega == None):
             print('K uese exactly same basis as J, and they share same set of Tensors')
             auxmol_K = auxmol_J
@@ -762,7 +762,7 @@ class TDDFT_ris(object):
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
 
         print('==================== RIK ====================')
-
+        tt = time.time()
         if K_fit == J_fit and (omega == 0 or omega == None):
             print('K uese exactly same basis as J, and they share same set of Tensors')
             auxmol_K = auxmol_J
