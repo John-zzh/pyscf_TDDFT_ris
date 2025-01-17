@@ -1,13 +1,11 @@
-from pyscf import gto, lib, dft, df
+from pyscf import gto
 from gpu4pyscf.df.int3c2e import VHFOpt, get_int3c2e_slice
-from gpu4pyscf.lib.cupy_helper import (block_c2s_diag, cart2sph, contract, get_avail_mem,
-                                       reduce_to_device, copy_array, transpose_sum)
-
+from gpu4pyscf.lib.cupy_helper import cart2sph
+from gpu4pyscf.scf.int2c2e import get_int2c2e
 
 import scipy
 import numpy as np
 import cupy as cp
-import multiprocessing as mp
 from pyscf_TDDFT_ris_cupy import parameter, math_helper, spectralib, eigen_solver
 
 # from pyscf_TDDFT_ris import eigen_solver_old as eigen_solver
@@ -19,8 +17,6 @@ cp.set_printoptions(linewidth=250, threshold=cp.inf)
 
 einsum = cp.einsum
 
-num_cores = int(mp.cpu_count())
-print("This job can use: " + str(num_cores) + "CPUs")
 
 
 # def print_memory_usage(line):
@@ -93,172 +89,7 @@ def get_auxmol(mol, theta=0.2, fitting_basis='s'):
     # print('=====================')
     # [print(k, v) for k, v in auxmol._basis.items()]
     return auxmol
-
-
-def calculate_batches_by_basis_count(mol, max_nbf_per_batch):
-    """
-    根据基函数数目划分 batch，并映射回最接近的 shell 数目。
-    
-    参数:
-        mol: PySCF 的 Mole 对象。
-        max_nbf_per_batch: 每个 batch 的最大基函数数目。
-    
-    返回:
-        一个列表，其中每个元素是 (start_shell, end_shell) 的元组，表示每个 batch 的 shell 范围。
-    """
-    ao_loc = mol.ao_loc  # Shell 到基函数的映射
-    nbas = mol.nbas      # Shell 数量
-    
-    batches = []
-    current_batch_start = 0
-    current_nbf = 0  # 当前 batch 的累计基函数数目
-    
-    for i in range(nbas):
-        # 当前 shell 的基函数数目
-        nbf_in_shell = ao_loc[i+1] - ao_loc[i]
-        if current_nbf + nbf_in_shell > max_nbf_per_batch:
-            # 如果当前 batch 超出基函数限制，结束当前 batch
-            batches.append((current_batch_start, i))
-            current_batch_start = i
-            current_nbf = 0
-        
-        # 累计当前 shell 的基函数数目
-        current_nbf += nbf_in_shell
-    
-    # 处理最后一个 batch
-    if current_batch_start < nbas:
-        batches.append((current_batch_start, nbas))
-    
-    return batches
-
-
-def get_eri2c_eri3c(mol, auxmol, max_mem_mb, omega=0, single=True):
-
-    '''
-    (uv|kl) = Σ_PQ (uv|P)(P|Q)^-1(Q|kl)
-    2 center 2 electron AO integral (P|Q)
-    nauxbf * nauxbf
-
-    3 center 2 electron integral (uv|P)
-    (nbf, nbf, nauxbf)
-
-    actually it returns (P|uv) ( or (Q|kl), they are the same, just transposed)
-    (nauxbf, nbf, nbf)
-
-    '''
-
-    start = time.time()
-    nbf = mol.nao_nr()
-    nauxbf = auxmol.nao_nr()
-    dtype = cp.float32 if single else cp.float64
-
-
-    if omega != 0:
-        mol.set_range_coulomb(omega)
-        auxmol.set_range_coulomb(omega)
-
-    tag = '_cart' if mol.cart else '_sph'
-
-    ''' eri2c is samll enough, just do it incore''' 
-    eri2c = auxmol.intor('int2c2e' + tag)
-    eri2c = cp.asarray(eri2c, dtype=cp.float64, order='C')
-
-    pmol = mol + auxmol
-    pmol.cart = mol.cart
-
-    '''for eri3c, if it is too large, then we need to compute in batches and return a generator '''
-    full_eri3c_mem = nbf * nbf * nauxbf * 8 / (1024 ** 2)
-    print(f'    Full eri3c in shape {int(nbf), int(nbf), int(nauxbf)}, will take {full_eri3c_mem:.0f} MB')
-
-    max_mem_for_one_batch = max_mem_mb / 2
-    print('    max_mem_for_one_batch', max_mem_for_one_batch)
-    # print('    auxmol.nbas, stride', auxmol.nbas, stride)
-    if max_mem_for_one_batch >= full_eri3c_mem:
-        print('    small 3c2e, just incore')
-        tt = time.time()
-        shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
-        eri3c = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
-        print(f'    eri3c on CPU time: {time.time() - tt:.2f} s')
-        tt = time.time()
-
-        eri3c = eri3c.transpose(2, 1, 0)
-        eri3c = eri3c.astype(dtype=dtype, order='C')
-        # eri3c = cp.asarray(eri3c)
-        print(f'    eri3c to GPU time: {time.time() - tt:.2f} s')
-
-        return eri2c, eri3c
-
-    else:
-        max_nbf_per_batch = int(max_mem_for_one_batch / (nbf * nbf * 8 / (1024 ** 2)))
-        print('    max_nbf_per_batch', max_nbf_per_batch)
-        batches = calculate_batches_by_basis_count(auxmol, max_nbf_per_batch)
-
-        print(f'    large 3c2e, batch generator, in {len(batches)} batches')
-        def eri3c_batch_generator():
-            # for start_aux in range(0, auxmol.nbas, stride):
-            #     end_aux = min(start_aux + stride, auxmol.nbas)
-            for start_shell, end_shell in batches:
-                shls_slice = (
-                    0, mol.nbas,            # First dimension (mol)
-                    0, mol.nbas,            # Second dimension (mol)
-                    mol.nbas + start_shell,   # Start of aux basis
-                    mol.nbas + end_shell      # End of aux basis (exclusive)
-                )
-                tt = time.time()
-                eri3c_slice = pmol.intor('int3c2e' + tag, shls_slice=shls_slice)
-                eri3c_slice = eri3c_slice.transpose(2, 1, 0)
-                eri3c_slice = eri3c_slice.astype(dtype=dtype, order='C')
-                print(f'    eri3c_slice on CPU time: {time.time() - tt:.2f} s')
-                tt = time.time()
-                # eri3c_slice = cp.asarray(eri3c_slice)
-                print(f'    eri3c_slice to GPU time: {time.time() - tt:.2f} s')
-                print(f'    eri3c_slice mem: {eri3c_slice.nbytes / (1024 ** 2):.0f} MB')
-
-                yield eri3c_slice
-        return eri2c, eri3c_batch_generator
-
    
-def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, max_mem_mb, single=False):
-
-    '''
-    in the RSH functional, the Exchange ERI splits into two parts
-    (ij|ab) = (ij|1-(alpha + beta*erf(omega))/r|ab) + (ij|alpha + beta*erf(omega)/r|ab)
-    -- The first part (ij|1-(alpha + beta*erf(omega))/r|ab) is short range, 
-        treated by the DFT XC functional, thus not considered here
-    -- The second part is long range 
-        (ij|alpha + beta*erf(omega)/r|ab) = alpha (ij|r|ab) + beta*(ij|erf(omega)/r|ab)
-
-
-        eri2c_K, eri3c_K are omega = 0, just like usual eri2c, eri3c
-    '''            
-    print('    generating 2c2e_RSH and 3c2e_RSH for RI-K (ij|ab) ...')
-    eri2c_erf, eri3c_erf = get_eri2c_eri3c(mol=mol, auxmol=auxmol, max_mem_mb=max_mem_mb, omega=omega, single=single)
-    eri2c_RSH = alpha * eri2c_K + beta * eri2c_erf
-    # print('type(eri3c_K)', type(eri3c_K))
-    # print('type(eri3c_erf)', type(eri3c_erf))
-    # print('callable(eri3c_K) and callable(eri3c_erf)', callable(eri3c_K),  callable(eri3c_erf))
-
-    if isinstance(eri3c_K, np.ndarray) and isinstance(eri3c_erf, np.ndarray):
-        eri3c_RSH = alpha * eri3c_K + beta * eri3c_erf
-        return eri2c_RSH, eri3c_RSH
-
-    elif callable(eri3c_K) and callable(eri3c_erf): 
-        def eri3c_RSH_generator():
-            eri3c_K_gen = eri3c_K()
-            eri3c_erf_gen = eri3c_erf()
-            while True:
-                try:
-                    eri3c_K_batch = next(eri3c_K_gen)
-                    eri3c_erf_batch = next(eri3c_erf_gen)
-                    eri3c_RSH_batch = alpha * eri3c_K_batch + beta * eri3c_erf_batch
-                    yield eri3c_RSH_batch
-                except StopIteration:
-                    break
-        return eri2c_RSH, eri3c_RSH_generator
-    else:
-        raise ValueError('eri3c_K and eri3c_erf must be both np.ndarray or callable')
-
-    
 
 '''
             n_occ          n_vir
@@ -275,120 +106,68 @@ def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, max_m
        -|-------------||-------------|
 '''
 
-def get_pre_Tpq_one_batch(eri3c, C_p, C_q):
+def get_Ppq_to_Tpq(Ppq: cp.ndarray, lower_inv_eri2c: cp.ndarray):
+    ''' Ppq  (nauxao, n_p, n_q) -> (nauxao, n_p*n_q)
+        lower_inv_eri2c  (nauxao, nauxao)
+        >> Ppq (nauxao, n_p*n_q) -> (nauxao, n_p, n_q)'''
+    tt = time.time()
+    nauxao, n_p, n_q = Ppq.shape
+
+    Ppq = Ppq.reshape(nauxao, n_p*n_q)
+
+    T_pq = cp.dot(lower_inv_eri2c.T, Ppq)
+    T_pq = T_pq.reshape(nauxao, n_p, n_q)
+
+    # print(f'Ppq_to_Tpq one batch time {time.time() - tt:.1f} seconds')
+    return T_pq 
+
+def get_PuvCupCvq_to_Ppq(eri3c: cp.ndarray, C_p: cp.ndarray, C_q: cp.ndarray):
     '''    
-    T_pq means rank-3 Tensor (pq|P)
-
-    T_pq = Σ_uvQ C_u^p (uv|Q)L_PQ  C_v^q
-
-    preT_pq^P =  Σ_uv C_up (uv|Q) C_vq, thus is the return 
-
+    eri3c : (P|pq) , P = auxnao or 3
     C_p and C_q:  C[:, :n_occ] or C[:, n_occ:], can be both
 
-    lower_inv_eri2c (L_PQ): (P|Q)^-1 = LL^T, not contract in this function
+    Ppq = einsum("Ppv,vq->Ppq", eri3c_Cp, C_q)
 
-    The following code is doing this:
-    eri3c_Cp = einsum("Puv, up -> Ppv", eri3c, C_p)
-    pre_T_pq = einsum("Ppv,vq->Ppq", eri3c_Cp, C_q)
-
-    T_pq = einsum("PQ,Ppq->Qpq", lower_inv_eri2c, pre_T_pq)
-
-    T_pq finally reshape to pq P shape
-
-    it has many manually reshape and transpose 
-    beause respecting c-contiguous is beneficial for memory access, much faster
+    manually reshape and transpose is faster than einsum
 
     '''
-    C_p = C_p.get()
-    C_q = C_q.get()
-
-    # print('type(eri3c), type(C_p), type(C_q)', type(eri3c), type(C_p), type(C_q))
     t_satrt = time.time()
 
     tt = time.time()
-    '''eri3c in shape (nauxbf, nbf, nbf)'''
-    nbf = eri3c.shape[1]
-    nauxbf = eri3c.shape[0]
+    '''eri3c in shape (nauxao, nao, nao)'''
+    nao = eri3c.shape[1]
+    nauxao = eri3c.shape[0]
 
     n_p = C_p.shape[1]
     n_q = C_q.shape[1]
 
 
-    '''eri3c (nauxbf, nbf, nbf) -> (nauxbf*nbf, nbf)
-       C_p (nbf, n_p)
-       >> eri3c_C_p (nauxbf*nbf, n_p)'''
-    eri3c = eri3c.reshape(nauxbf*nbf, nbf)
-    eri3c_C_p = np.dot(eri3c, C_p)
+    '''eri3c (nauxao, nao, nao) -> (nauxao*nao, nao)
+       C_p (nao, n_p)
+       >> eri3c_C_p (nauxao*nao, n_p)'''
+    eri3c = eri3c.reshape(nauxao*nao, nao)
+    eri3c_C_p = cp.dot(eri3c, C_p)
+
     tt = time.time()
 
-    ''' eri3c_C_p (nauxbf*nbf, n_p) 
-        -> (nauxbf, nbf, n_p) 
-        -> (nauxbf, n_p, nbf) '''
-    eri3c_C_p = eri3c_C_p.reshape(nauxbf, nbf, n_p)
+    ''' eri3c_C_p (nauxao*nao, n_p) 
+        -> (nauxao, nao, n_p) 
+        -> (nauxao, n_p, nao) '''
+    eri3c_C_p = eri3c_C_p.reshape(nauxao, nao, n_p)
     eri3c_C_p = eri3c_C_p.transpose(0,2,1)
 
-    ''' eri3c_C_p  (nauxbf, n_p, nbf) -> (nauxbf*n_p, nbf)
-        C_q  (nbf, n_q)
-        >> pre_T_pq (nauxbf*n_p, n_q) >  (nauxbf, n_p, n_q)  '''
-    eri3c_C_p = eri3c_C_p.reshape(nauxbf*n_p, nbf)
-    pre_T_pq = np.dot(eri3c_C_p, C_q)
-    pre_T_pq = pre_T_pq.reshape(nauxbf, n_p, n_q)
-    # pre_T_pq = cp.asarray(pre_T_pq)
-    print(f'    pre_T_pq time: {time.time() - t_satrt:.1f} seconds')
-    return pre_T_pq
+    ''' eri3c_C_p  (nauxao, n_p, nao) -> (nauxao*n_p, nao)
+        C_q  (nao, n_q)
+        >> Ppq (nauxao*n_p, n_q) >  (nauxao, n_p, n_q)  '''
+    eri3c_C_p = eri3c_C_p.reshape(nauxao*n_p, nao)
+    Ppq = cp.dot(eri3c_C_p, C_q)
+    Ppq = Ppq.reshape(nauxao, n_p, n_q)
 
-def get_pre_T_pq_to_Tpq(pre_T_pq: cp.ndarray, lower_inv_eri2c: cp.ndarray):
-    ''' pre_T_pq  (nauxbf, n_p, n_q) -> (nauxbf, n_p*n_q)
-        lower_inv_eri2c  (nauxbf, nauxbf)
-        >> T_pq (nauxbf, n_p*n_q) -> (nauxbf, n_p, n_q)'''
-    tt = time.time()
-    nauxbf, n_p, n_q = pre_T_pq.shape
-
-    pre_T_pq = pre_T_pq.reshape(nauxbf, n_p*n_q)
-
-    T_pq = cp.dot(lower_inv_eri2c.T, pre_T_pq)
-    T_pq = T_pq.reshape(nauxbf, n_p, n_q)
-
-    print(f'pre_T_pq_to_Tpq one batch time {time.time() - tt:.1f} seconds')
-    return T_pq 
-
-def get_Tpq(eri3c, lower_inv_eri2c, C_p, C_q):
-    """
-    Wrapper function to handle eri3c as either a matrix or a callable.
-    """
-    # 判断 eri3c 的类型
-    # print('type(eri3c)', type(eri3c))
-    if not callable(eri3c):
-        pre_T_pq = get_pre_Tpq_one_batch(eri3c, C_p, C_q)
+    return Ppq
 
 
-    elif callable(eri3c):
-        # 分批次计算 T_pq
-        nauxbf = lower_inv_eri2c.shape[0]
-        n_p = C_p.shape[1]
-        n_q = C_q.shape[1]
-
-        pre_T_pq = np.zeros((nauxbf, n_p, n_q), dtype=C_p.dtype) 
-        aux_offset = 0  # Offset to track where to store results in T_pq
-        
-        i = 0
-        for eri3c_batch in eri3c():
-            print(f'        batch {i} done')
-            i += 1
-            # Process each batch of eri3c
-            batch_size = eri3c_batch.shape[0]
-            pre_T_pq[aux_offset:aux_offset + batch_size, :, :] = get_pre_Tpq_one_batch(eri3c_batch, C_p, C_q)
-            aux_offset += batch_size  # Update the offset for the next batch
-
-    else:
-        raise ValueError("eri3c must be either a numpy.ndarray or a callable returning a generator.")
-
-    pre_T_pq = cp.asarray(pre_T_pq)
-    T_pq = get_pre_T_pq_to_Tpq(pre_T_pq, lower_inv_eri2c)
-    return T_pq
-
-
-BLKSIZE = 256
+BLKSIZE = 10000
+AUXBLKSIZE = 256
 
 def get_int3c2e(mol, auxmol, aosym=True, omega=None):
     '''
@@ -428,7 +207,7 @@ def get_int3c2e(mol, auxmol, aosym=True, omega=None):
     int3c = intopt.unsort_orbitals(int3c, aux_axis=[0], axis=[1,2])
     return int3c
 
-def compute_Ppq_on_gpu(mol, auxmol, C_p, C_q, aosym=True, omega=None):
+def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK', aosym=True, omega=None, alpha=None, beta=None):
     """
     (3c2e_{Puv}, C_{up}, C_{vq} -> Ppq)。
 
@@ -439,11 +218,11 @@ def compute_Ppq_on_gpu(mol, auxmol, C_p, C_q, aosym=True, omega=None):
         C_q: cupy.ndarray  (nao, q)
 
     Returns:
-        Ppq: cupy.ndarray (naux, nao, nao)
+        Tpq: cupy.ndarray (naux, nao, nao)
     """
 
     intopt = VHFOpt(mol, auxmol, 'int2e')
-    intopt.build(aosym=aosym, group_size=BLKSIZE, group_size_aux=BLKSIZE)
+    intopt.build(aosym=aosym, group_size=BLKSIZE, group_size_aux=AUXBLKSIZE)
 
     nao = mol.nao
     naux = auxmol.nao
@@ -454,7 +233,12 @@ def compute_Ppq_on_gpu(mol, auxmol, C_p, C_q, aosym=True, omega=None):
     siz_p = C_p.shape[1]
     siz_q = C_q.shape[1]
 
-    Ppq = cp.zeros((naux, siz_p, siz_q), dtype=cp.float32)
+    if 'J' in calc:
+        Ppq = cp.zeros((naux, siz_p, siz_q), dtype=cp.float32)
+
+    if 'K' in calc:
+        Ppp = cp.zeros((naux, siz_p, siz_p), dtype=cp.float32)
+        Pqq = cp.zeros((naux, siz_q, siz_q), dtype=cp.float32)
 
     for cp_kl_id, _ in enumerate(intopt.aux_log_qs):
         k0, k1 = intopt.aux_ao_loc[cp_kl_id], intopt.aux_ao_loc[cp_kl_id+1]
@@ -469,15 +253,25 @@ def compute_Ppq_on_gpu(mol, auxmol, C_p, C_q, aosym=True, omega=None):
             li = intopt.angular[cpi]
             lj = intopt.angular[cpj]
          
-            int3c_nlk_cart = get_int3c2e_slice(intopt, cp_ij_id, cp_kl_id, omega=omega)
+            int3c_slice_blk = get_int3c2e_slice(intopt, cp_ij_id, cp_kl_id, omega=0)
+
             if not mol.cart:
-                int3c_nlk_cart = cart2sph(int3c_nlk_cart, axis=1, ang=lj)
-                int3c_nlk_cart = cart2sph(int3c_nlk_cart, axis=2, ang=li)
+                int3c_slice_blk = cart2sph(int3c_slice_blk, axis=1, ang=lj)
+                int3c_slice_blk = cart2sph(int3c_slice_blk, axis=2, ang=li)
+
+
+            if omega and omega != 0:
+                int3c_slice_blk_omega = get_int3c2e_slice(intopt, cp_ij_id, cp_kl_id, omega=omega)
+                if not mol.cart:
+                    int3c_slice_blk_omega = cart2sph(int3c_slice_blk_omega, axis=1, ang=lj)
+                    int3c_slice_blk_omega = cart2sph(int3c_slice_blk_omega, axis=2, ang=li)
+                int3c_slice_blk = alpha * int3c_slice_blk +  beta * int3c_slice_blk_omega
+
 
             i0, i1 = intopt.ao_loc[cpi], intopt.ao_loc[cpi+1]
             j0, j1 = intopt.ao_loc[cpj], intopt.ao_loc[cpj+1]  
             
-            int3c_slice[:,j0:j1, i0:i1] = int3c_nlk_cart
+            int3c_slice[:,j0:j1, i0:i1] = int3c_slice_blk
 
         if aosym:
             row, col = cp.tril_indices(nao)
@@ -487,33 +281,75 @@ def compute_Ppq_on_gpu(mol, auxmol, C_p, C_q, aosym=True, omega=None):
         unsorted_ao_index = cp.argsort(intopt._ao_idx)
         int3c_slice = int3c_slice[:, unsorted_ao_index, :]
         int3c_slice = int3c_slice[:, :, unsorted_ao_index]
-        print('check int3c_slice symmetry', cp.allclose(int3c_slice, int3c_slice.transpose((0, 2, 1))))
+        # print('check int3c_slice symmetry', cp.allclose(int3c_slice, int3c_slice.transpose((0, 2, 1))))
 
-        tmp = cp.einsum('Puv,up->Ppv', int3c_slice, C_p)
-        Ppq[k0:k1,:,:] = cp.einsum('Ppv,vq->Ppq', tmp, C_q)
+        # tmp_p = cp.einsum('Puv,up->Ppv', int3c_slice, C_p)
+        # Ppq[k0:k1,:,:] = cp.einsum('Ppv,vq->Ppq', tmp_p, C_q)
+
+        if 'J' in calc:
+            Ppq[k0:k1,:,:] = get_PuvCupCvq_to_Ppq(int3c_slice,C_p,C_q)
+
+        if 'K' in calc:
+
+            Ppp[k0:k1,:,:] = get_PuvCupCvq_to_Ppq(int3c_slice,C_p,C_p)
+            Pqq[k0:k1,:,:] = get_PuvCupCvq_to_Ppq(int3c_slice,C_q,C_q)
+
 
     unsorted_aux_ao_index = cp.argsort(intopt._aux_ao_idx)
-    Ppq = Ppq[unsorted_aux_ao_index,:,:]
+    # Ppq = cp.asarray(Ppq[unsorted_aux_ao_index,:,:],order="C") 
 
+    
 
-    # eri_3c2e = get_int3c2e(mol, auxmol)
-    # tmp = cp.einsum('Puv,up->Ppv', eri_3c2e, C_p)
-    # Ppq = cp.einsum('Ppv,vq->Ppq', tmp, C_q)
+    # DEBUG = False
+    # if DEBUG:
+    #     eri_3c2e = get_int3c2e(mol, auxmol, omega=0)
+    #     if omega and omega != 0:
+    #         eri_3c2e_erf = get_int3c2e(mol, auxmol, omega=omega)
+    #         eri_3c2e = alpha * eri_3c2e + beta * eri_3c2e_erf
+    #     tmp = cp.einsum('Puv,up->Ppv', eri_3c2e, C_p)
+    #     Ppq = cp.einsum('Ppv,vq->Ppq', tmp, C_q)
 
-    return Ppq
+    if calc == 'J':
+        Tpq = get_Ppq_to_Tpq(Ppq[unsorted_aux_ao_index,:,:], lower_inv_eri2c)
+        return Tpq
 
-def get_eri2c_inv_lower(auxmol):
+    if calc == 'K':
+        Tpp = get_Ppq_to_Tpq(Ppp[unsorted_aux_ao_index,:,:], lower_inv_eri2c)
+        Tqq = get_Ppq_to_Tpq(Pqq[unsorted_aux_ao_index,:,:], lower_inv_eri2c)
+        return Tpp, Tqq
+
+    if calc == 'JK':
+        Tpq = get_Ppq_to_Tpq(Ppq[unsorted_aux_ao_index,:,:], lower_inv_eri2c)
+        Tpp = get_Ppq_to_Tpq(Ppp[unsorted_aux_ao_index,:,:], lower_inv_eri2c)
+        Tqq = get_Ppq_to_Tpq(Pqq[unsorted_aux_ao_index,:,:], lower_inv_eri2c)
+        return Tpq, Tpp, Tqq
+
+def get_eri2c_inv_lower(auxmol, omega=0, alpha=None, beta=None):
+
     eri2c = auxmol.intor('int2c2e')
+    print('omega, alpha, beta', omega, alpha, beta)
+
+    if omega and omega != 0:
+
+        auxmol.set_range_coulomb(omega)
+        auxmol.build()
+        eri2c_erf = auxmol.intor('int2c2e')
+        # print('check diff eri2c', cp.allclose(eri2c, eri2c_erf))
+        eri2c = alpha * eri2c + beta * eri2c_erf
+
     eri2c = cp.asarray(eri2c, dtype=cp.float64, order='C')
-    lower_inv_eri2c = math_helper.matrix_power(eri2c,-0.5,epsilon=1e-6)
+    lower_inv_eri2c = math_helper.matrix_power(eri2c,-0.5,epsilon=1e-8)
     lower_inv_eri2c = cp.asarray(lower_inv_eri2c, dtype=cp.float32, order='C')
     return lower_inv_eri2c
 
+def get_inter_contract_C(int_tensor, C_occ, C_vir):
+
+    P = get_PuvCupCvq_to_Ppq(int_tensor, C_occ, C_vir)
+
+    P = cp.asarray(P.reshape(3,-1))
+    return P
 
 def gen_hdiag_MVP(hdiag, n_occ, n_vir):
-    # def hdiag_MVP(V):
-    #     delta_hdiag_v = einsum("ia,iam->iam", delta_hdiag, V)
-    #     return delta_hdiag_v
     def hdiag_MVP(V):
         m = V.shape[0]
         V = V.reshape(m, n_occ*n_vir)
@@ -596,9 +432,13 @@ class TDDFT_ris(object):
                 single: bool = False,
                 max_mem_mb: int = 8000,):
 
+        self.single = single
+        if single == True:
+            mf.mo_coeff = cp.asarray(mf.mo_coeff, dtype=cp.float32)
+
         self.mf = mf
-        print('type mf', type(mf))
-        print('type mf.mol', type(mf.mol))
+        # print('type mf', type(mf))
+        # print('type mf.mol', type(mf.mol))
         self.theta = theta
         self.J_fit = J_fit
         self.K_fit = K_fit
@@ -622,7 +462,7 @@ class TDDFT_ris(object):
         self.out_name = out_name
         self.print_threshold = print_threshold
         self.GS = GS
-        self.single = single
+        
         self.max_mem_mb = max_mem_mb
         print('self.nroots', self.nroots)
         print('use single precision?', self.single)
@@ -672,15 +512,14 @@ class TDDFT_ris(object):
                 else:
                     raise ValueError('missing parameters for range-separated XC functional, please input (w, al, be)')
         print('self.a_x', self.a_x)
+        print('self.omega', self.omega)
+        print('self.alpha', self.alpha)
+        print('self.beta', self.beta)
         if self.mol.cart:
             self.eri_tag = '_cart'
         else:
             self.eri_tag = '_sph'
         print('cartesian or spherical electron integral =',self.eri_tag)
-
-
-        if single == True:
-            mf.mo_coeff = mf.mo_coeff.astype(cp.float32)
 
         if mf.mo_coeff.ndim == 2:
             self.RKS = True
@@ -688,15 +527,13 @@ class TDDFT_ris(object):
             # self.n_if = len(mf.mo_occ)
             n_occ = int(sum(mf.mo_occ>0))
             n_vir = int(sum(mf.mo_occ==0))
-            print('type(n_occ)', type(n_occ))    
-            print('type(n_vir)', type(n_vir))
             self.n_occ = n_occ
             self.n_vir = n_vir
 
             self.C_occ_notrunc = cp.asfortranarray(mf.mo_coeff[:,:n_occ])
             self.C_vir_notrunc = cp.asfortranarray(mf.mo_coeff[:,n_occ:])
             mo_energy = mf.mo_energy
-            print('type(mo_energy)', type(mo_energy))
+            # print('type(mo_energy)', type(mo_energy))
             print('mo_energy.shape', mo_energy.shape)
             vir_ene = mo_energy[n_occ:].reshape(1,n_vir)
             occ_ene = mo_energy[:n_occ].reshape(n_occ,1)
@@ -744,8 +581,6 @@ class TDDFT_ris(object):
             print('n_occ for beta spin =',self.n_occ_b)
             print('n_vir for beta spin =',self.n_vir_b)    
 
-
-
     #  ===========  RKS hybrid ===========
     def get_RKS_TDA_hybrid_MVP(self):
         ''' TDA RKS hybrid '''
@@ -753,7 +588,7 @@ class TDDFT_ris(object):
         n_occ = self.n_occ
         n_vir = self.n_vir
 
-        mo_coeff = self.mf.mo_coeff
+        mo_coeff = cp.asarray(self.mf.mo_coeff)
         mo_energy = self.mf.mo_energy
 
         single = self.single 
@@ -775,62 +610,60 @@ class TDDFT_ris(object):
         J_fit = self.J_fit
         K_fit = self.K_fit
 
+        omega = self.omega
         alpha = self.alpha
         beta = self.beta
-        omega = self.omega
-
-        max_mem_mb = self.max_mem_mb
-        ''' RIJ '''
-        tt = time.time()
-        print('==================== RIJ ====================')
-        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
         
-        eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
 
-        lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J,-0.5,epsilon=1e-6)
-        lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=cp.float32 if single else cp.float64)
-       
-        T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
-        T_ia_J = cp.asarray(T_ia_J)
-        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
+
+        print('==================== RIJ ====================')
         tt = time.time()
+
+        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
+
+        unit = 4 if single else 8
+        print(f'T_ia_J is going to take { auxmol_J.nao_nr() * n_occ * n_vir * unit / (1024 ** 2):.0f} MB memory')
+        
+        
+        lower_inv_eri2c_J = get_eri2c_inv_lower(auxmol_J, omega=0)
+
+        T_ia_J = compute_Tpq_on_gpu_general(mol, auxmol_J, 
+                                            C_p=C_occ_notrunc, 
+                                            C_q=C_vir_notrunc, 
+                                            lower_inv_eri2c=lower_inv_eri2c_J,
+                                            calc="J", 
+                                            omega=0)
+        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
 
         print('==================== RIK ====================')
-        ''' RIK '''
-        if K_fit == J_fit:
-            ''' K uese exactly same basis as J and they share same set of Tensors'''
+
+        if K_fit == J_fit and (omega == 0 or omega == None):
+            print('K uese exactly same basis as J, and they share same set of Tensors')
             auxmol_K = auxmol_J
-            eri2c_K, eri3c_K = eri2c_J, eri3c_J
+            lower_inv_eri2c_K = lower_inv_eri2c_J
+
         else:
-            ''' K uese different basis as J'''
+            print('K uese different basis as J')
             auxmol_K = get_auxmol(mol=mol, theta=theta, fitting_basis=K_fit) 
-            eri2c_K, eri3c_K = get_eri2c_eri3c(mol=mol, auxmol=auxmol_K, omega=0, single=single, max_mem_mb=max_mem_mb)
+            lower_inv_eri2c_K = get_eri2c_inv_lower(auxmol_K, omega=omega, alpha=alpha, beta=beta)
 
-        if omega and omega > 0:
-            print(f'        rebuild eri2c_K and eri3c_K with screening factor ω = {omega}')
-            '''RSH, eri2c_K and eri3c_K need to be redefined'''
-            eri2c_K, eri3c_K = get_eri2c_eri3c_RSH(mol=mol, 
-                                                auxmol=auxmol_K, 
-                                                eri2c_K=eri2c_K, 
-                                                eri3c_K=eri3c_K, 
-                                                alpha=alpha, 
-                                                beta=beta, 
-                                                omega=omega, 
-                                                single=single,
-                                                max_mem_mb=max_mem_mb)
+        unit = 4 if single else 8
+        print(f'T_ij_K is going to take {auxmol_K.nao_nr() * rest_occ * rest_occ * unit / (1024 ** 2):.0f} MB memory')
+        print(f'T_ab_K is going to take {auxmol_K.nao_nr() * rest_vir * rest_vir * unit / (1024 ** 2):.0f} MB memory')
+        
+        T_ij_K, T_ab_K = compute_Tpq_on_gpu_general(mol, auxmol_K, 
+                                                            C_p=C_occ_Ktrunc, 
+                                                            C_q=C_vir_Ktrunc, 
+                                                            lower_inv_eri2c=lower_inv_eri2c_K, 
+                                                            calc='K', 
+                                                            omega=omega,
+                                                            alpha=alpha, 
+                                                            beta=beta)
 
-        lower_inv_eri2c_K = math_helper.matrix_power(eri2c_K,-0.5,epsilon=1e-6)
-        lower_inv_eri2c_K = lower_inv_eri2c_K.astype(dtype=cp.float32 if single else cp.float64)
+        print(f' T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
 
 
-        T_ij_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_occ_Ktrunc)
-        T_ab_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_vir_Ktrunc, C_q=C_vir_Ktrunc)
 
-        T_ij_K = cp.asarray(T_ij_K)
-        T_ab_K = cp.asarray(T_ab_K)
-        print(f'T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
-
-        # hdiag = delta_hdiag.reshape(-1)
         hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
 
         iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
@@ -886,15 +719,15 @@ class TDDFT_ris(object):
         J_fit = self.J_fit
         K_fit = self.K_fit
 
+        omega = self.omega
         alpha = self.alpha
         beta = self.beta
-        omega = self.omega
-
-        max_mem_mb = self.max_mem_mb
-        ''' RIJ '''
-        tt = time.time()
-        print('==================== RIJ ====================')
         
+
+
+        
+        print('==================== RIJ ====================')
+        tt = time.time()
 
         auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
 
@@ -902,59 +735,44 @@ class TDDFT_ris(object):
         print(f'T_ia_J is going to take { auxmol_J.nao_nr() * n_occ * n_vir * unit / (1024 ** 2):.0f} MB memory')
         
         
-        lower_inv_eri2c_J = get_eri2c_inv_lower(auxmol_J)
+        lower_inv_eri2c_J = get_eri2c_inv_lower(auxmol_J, omega=0)
 
-        pre_T_ia_J = compute_Ppq_on_gpu(mol, auxmol_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
-        T_ia_J = get_pre_T_pq_to_Tpq(pre_T_pq=pre_T_ia_J, lower_inv_eri2c=lower_inv_eri2c_J)
-
+        T_ia_J = compute_Tpq_on_gpu_general(mol, auxmol_J, 
+                                            C_p=C_occ_notrunc, 
+                                            C_q=C_vir_notrunc, 
+                                            lower_inv_eri2c=lower_inv_eri2c_J,
+                                            calc="J", 
+                                            omega=0)
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
 
         print('==================== RIK ====================')
 
-        if K_fit == J_fit:
-            ''' K uese exactly same basis as J and they share same set of Tensors'''
+        if K_fit == J_fit and (omega == 0 or omega == None):
+            print('K uese exactly same basis as J, and they share same set of Tensors')
             auxmol_K = auxmol_J
             lower_inv_eri2c_K = lower_inv_eri2c_J
 
         else:
-            ''' K uese different basis as J'''
+            print('K uese different basis as J')
             auxmol_K = get_auxmol(mol=mol, theta=theta, fitting_basis=K_fit) 
-            lower_inv_eri2c_K = get_eri2c_inv_lower(auxmol_K)
-
-        if omega and omega > 0:
-            print(f'        rebuild eri2c_K and eri3c_K with screening factor ω = {omega}')
-            '''RSH, eri2c_K and eri3c_K need to be redefined'''
-
-
-
-
+            lower_inv_eri2c_K = get_eri2c_inv_lower(auxmol_K, omega=omega, alpha=alpha, beta=beta)
 
         unit = 4 if single else 8
-        print(f'T_ia_K is going to take {  auxmol_K.nao_nr() * rest_occ * rest_vir * unit / (1024 ** 2):.0f} MB memory')
-        print(f'T_ij_K is going to take {  auxmol_K.nao_nr() * rest_occ * rest_occ * unit / (1024 ** 2):.0f} MB memory')
-        print(f'T_ab_K is going to take {  auxmol_K.nao_nr() * rest_vir * rest_vir * unit / (1024 ** 2):.0f} MB memory')
+        print(f'T_ia_K is going to take {auxmol_K.nao_nr() * rest_occ * rest_vir * unit / (1024 ** 2):.0f} MB memory')
+        print(f'T_ij_K is going to take {auxmol_K.nao_nr() * rest_occ * rest_occ * unit / (1024 ** 2):.0f} MB memory')
+        print(f'T_ab_K is going to take {auxmol_K.nao_nr() * rest_vir * rest_vir * unit / (1024 ** 2):.0f} MB memory')
         
-        pre_T_ia_K = compute_Ppq_on_gpu(mol, auxmol_K, C_p=C_occ_Ktrunc, C_q=C_vir_Ktrunc)
-        T_ia_K = get_pre_T_pq_to_Tpq(pre_T_pq=pre_T_ia_K, lower_inv_eri2c=lower_inv_eri2c_K)
-        # print('T_ia_K.dtype', T_ia_K.dtype)
-     
-        pre_T_ij_K = compute_Ppq_on_gpu(mol, auxmol_K, C_p=C_occ_Ktrunc, C_q=C_occ_Ktrunc)
-        T_ij_K = get_pre_T_pq_to_Tpq(pre_T_pq=pre_T_ij_K, lower_inv_eri2c=lower_inv_eri2c_K)
-
-        pre_T_ab_K = compute_Ppq_on_gpu(mol, auxmol_K, C_p=C_vir_Ktrunc, C_q=C_vir_Ktrunc)
-        T_ab_K = get_pre_T_pq_to_Tpq(pre_T_pq=pre_T_ab_K, lower_inv_eri2c=lower_inv_eri2c_K)
-
-        # T_ia_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_vir_Ktrunc)
-        # T_ij_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_occ_Ktrunc, C_q=C_occ_Ktrunc)
-        # T_ab_K = get_Tpq(eri3c=eri3c_K, lower_inv_eri2c=lower_inv_eri2c_K, C_p=C_vir_Ktrunc, C_q=C_vir_Ktrunc)
-
-        # T_ia_K = cp.asarray(T_ia_K)
-        # T_ij_K = cp.asarray(T_ij_K)
-        # T_ab_K = cp.asarray(T_ab_K)
+        T_ia_K, T_ij_K, T_ab_K = compute_Tpq_on_gpu_general(mol, auxmol_K, 
+                                                            C_p=C_occ_Ktrunc, 
+                                                            C_q=C_vir_Ktrunc, 
+                                                            lower_inv_eri2c=lower_inv_eri2c_K, 
+                                                            calc='JK', 
+                                                            omega=omega,
+                                                            alpha=alpha, 
+                                                            beta=beta)
 
         print(f'T_ia_K T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
 
-        # hdiag = delta_hdiag.reshape(-1)
         hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
 
         iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
@@ -1049,20 +867,24 @@ class TDDFT_ris(object):
 
         J_fit = self.J_fit
 
-        max_mem_mb = self.max_mem_mb
-        ''' RIJ '''
-        tt = time.time()
         print('==================== RIJ ====================')
-        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
-        
-        eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
-
-        lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J,-0.5,epsilon=1e-6)
-        lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=cp.float32 if single else cp.float64)
-       
-        T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
-        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
         tt = time.time()
+
+        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
+
+        unit = 4 if single else 8
+        print(f'T_ia_J is going to take { auxmol_J.nao_nr() * n_occ * n_vir * unit / (1024 ** 2):.0f} MB memory')
+        
+        lower_inv_eri2c_J = get_eri2c_inv_lower(auxmol_J, omega=0)
+
+        T_ia_J = compute_Tpq_on_gpu_general(mol, auxmol_J, 
+                                            C_p=C_occ_notrunc, 
+                                            C_q=C_vir_notrunc, 
+                                            lower_inv_eri2c=lower_inv_eri2c_J,
+                                            calc="J", 
+                                            omega=0)
+        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
+
  
         hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
         iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
@@ -1104,20 +926,23 @@ class TDDFT_ris(object):
 
         J_fit = self.J_fit
 
-        max_mem_mb = self.max_mem_mb
-        ''' RIJ '''
-        tt = time.time()
         print('==================== RIJ ====================')
-        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
-        
-        eri2c_J, eri3c_J = get_eri2c_eri3c(mol=mol, auxmol=auxmol_J, omega=0, single=single, max_mem_mb=max_mem_mb)
-
-        lower_inv_eri2c_J = math_helper.matrix_power(eri2c_J, -0.5, epsilon=1e-6)
-        lower_inv_eri2c_J = lower_inv_eri2c_J.astype(dtype=cp.float32 if single else cp.float64)
-       
-        T_ia_J = get_Tpq(eri3c=eri3c_J, lower_inv_eri2c=lower_inv_eri2c_J, C_p=C_occ_notrunc, C_q=C_vir_notrunc)
-        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
         tt = time.time()
+
+        auxmol_J = get_auxmol(mol=mol, theta=theta, fitting_basis=J_fit)
+
+        unit = 4 if single else 8
+        print(f'T_ia_J is going to take { auxmol_J.nao_nr() * n_occ * n_vir * unit / (1024 ** 2):.0f} MB memory')
+        
+        lower_inv_eri2c_J = get_eri2c_inv_lower(auxmol_J, omega=0)
+
+        T_ia_J = compute_Tpq_on_gpu_general(mol, auxmol_J, 
+                                            C_p=C_occ_notrunc, 
+                                            C_q=C_vir_notrunc, 
+                                            lower_inv_eri2c=lower_inv_eri2c_J,
+                                            calc="J", 
+                                            omega=0)
+        print(f'T_ia_J time {time.time() - tt:.1f} seconds')
  
         hdiag_sqrt_MVP = gen_hdiag_MVP(hdiag=hdiag**0.5, n_occ=n_occ, n_vir=n_vir)
         hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
@@ -1491,67 +1316,36 @@ class TDDFT_ris(object):
 
         #     return ABX
 
-    def get_inter_contract_C(self, int_tensor, mo_coeff, mo_occ):
-        '''
-        transition dipole
-        mol: mol obj
-        '''
-        occidx = mo_occ > 0
-        orbo = mo_coeff[:, occidx]
-        orbv = mo_coeff[:,~occidx]
-
-        # P = einsum("xpq,pi,qa->xia", int_tensor, orbo, orbv.conj())
-        P = get_pre_Tpq_one_batch(int_tensor, orbo, orbv.conj())
-
-        P = cp.asarray(P.reshape(3,-1))
-
-        return P
-
-    def get_RKS_P(self):
+    def get_P(self):
         '''
         transition dipole u
         '''
-        tag = self.eri_tag
-        int_r = self.mol.intor_symmetric('int1e_r'+tag)
-        int_r = np.asarray(int_r, dtype=cp.float32 if self.single else cp.float64)
-        mo_occ = self.mf.mo_occ
-        mo_coeff = self.mf.mo_coeff
-
-        P = self.get_inter_contract_C(int_tensor=int_r, mo_coeff=mo_coeff, mo_occ=mo_occ)
-        # P = P.reshape(-1,3)
+        int_r = self.mol.intor_symmetric('int1e_r' + self.eri_tag)
+        int_r = cp.asarray(int_r, dtype=cp.float32 if self.single else cp.float64)
+        if self.RKS:
+            P = get_inter_contract_C(int_tensor=int_r, C_occ=self.C_occ_notrunc, C_vir=self.C_vir_notrunc)
+        else:
+            ''' TODO '''
+            P_alpha = get_inter_contract_C(int_tensor=int_r, C_occ=self.C_occ[0], C_vir=self.C_vir[0])
+            P_beta = get_inter_contract_C(int_tensor=int_r, C_occ=self.C_occ[1], C_vir=self.C_vir[1])
+            P = cp.vstack((P_alpha, P_beta))
         return P
 
-    def get_RKS_mdpol(self):
+    def get_mdpol(self):
         '''
         magnatic dipole m
         '''
-        tag = self.eri_tag
-        # int_rxp = self.mol.intor_symmetric('int1e_cg_irxp'+tag)
-        int_rxp = self.mol.intor('int1e_cg_irxp', comp=3, hermi=2)
-        int_rxp = np.asarray(int_rxp, dtype=cp.float32 if self.single else cp.float64)
-        mo_occ = self.mf.mo_occ
-        mo_coeff = self.mf.mo_coeff
+        int_rxp = self.mol.intor('int1e_cg_irxp' + self.eri_tag, comp=3, hermi=2)
+        int_rxp = cp.asarray(int_rxp, dtype=cp.float32 if self.single else cp.float64)
 
-        mdpol = self.get_inter_contract_C(int_tensor=int_rxp, mo_coeff=mo_coeff, mo_occ=mo_occ)
-        # P = P.reshape(-1,3)
+        if self.RKS:
+            mdpol = get_inter_contract_C(int_tensor=int_rxp, C_occ=self.C_occ_notrunc, C_vir=self.C_vir_notrunc)
+        else:
+            ''' TODO '''
+            mdpol_alpha = get_inter_contract_C(int_tensor=int_rxp, C_occ=self.C_occ[0], C_vir=self.C_vir[0])
+            mdpol_beta = get_inter_contract_C(int_tensor=int_rxp, C_occ=self.C_occ[1], C_vir=self.C_vir[1])
+            mdpol = cp.vstack((mdpol_alpha, mdpol_beta))
         return mdpol
-
-    def get_UKS_P(self):
-        '''
-        transition dipole,
-        P = [P_α]
-            [P_β]
-        '''
-        tag = self.eri_tag
-        int_r = self.mol.intor_symmetric('int1e_r'+tag)
-
-        mo_occ = self.mf.mo_occ
-        mo_coeff = self.mf.mo_coeff
-
-        P_alpha = self.get_inter_contract_C(int_r=int_r, mo_coeff=mo_coeff[0], mo_occ=mo_occ[0])
-        P_beta = self.get_inter_contract_C(int_r=int_r, mo_coeff=mo_coeff[1], mo_occ=mo_occ[1])
-        P = cp.vstack((P_alpha, P_beta))
-        return P
 
     def kernel_TDA(self):
  
@@ -1562,8 +1356,6 @@ class TDDFT_ris(object):
         '''
 
         if self.RKS:
-            P = self.get_RKS_P()
-            mdpol = self.get_RKS_mdpol()
 
             if self.a_x != 0:
                 TDA_MVP, hdiag = self.get_RKS_TDA_hybrid_MVP()
@@ -1574,7 +1366,7 @@ class TDDFT_ris(object):
 
         elif self.UKS:
             TDA_MVP, hdiag = self.get_UKS_TDA_MVP()
-            P = self.get_UKS_P()
+            
 
         energies, X = eigen_solver.Davidson(matrix_vector_product=TDA_MVP,
                                             hdiag=hdiag,
@@ -1585,6 +1377,9 @@ class TDDFT_ris(object):
                                             single=self.single)
         Xnorm = cp.linalg.norm(cp.dot(X, X.T) - cp.eye(X.shape[0]))
         print(f'check orthonormal of X: {Xnorm:.2e}')
+
+        P = self.get_P()
+        mdpol = self.get_mdpol()
 
         oscillator_strength = spectralib.get_spectra(energies=energies, 
                                                        X=X/(2**0.5),
@@ -1607,12 +1402,12 @@ class TDDFT_ris(object):
         if self.a_x != 0:
             '''hybrid TDDFT'''
             if self.RKS:
-                P = self.get_RKS_P()
-                mdpol = self.get_RKS_mdpol()
+                # P = self.get_RKS_P()
+                # mdpol = self.get_RKS_mdpol()
                 TDDFT_hybrid_MVP, hdiag = self.gen_RKS_TDDFT_hybrid_MVP()
 
             elif self.UKS:
-                P = self.get_UKS_P()
+                # P = self.get_UKS_P()
                 TDDFT_hybrid_MVP, hdiag = self.get_UKS_TDDFT_MVP()
 
             energies, X, Y = eigen_solver.Davidson_Casida(matrix_vector_product=TDDFT_hybrid_MVP, 
@@ -1627,12 +1422,12 @@ class TDDFT_ris(object):
             '''pure TDDFT'''
             if self.RKS:
                 TDDFT_pure_MVP, hdiag_sq = self.gen_RKS_TDDFT_pure_MVP()
-                P = self.get_RKS_P()
-                mdpol = self.get_RKS_mdpol()
+                # P = self.get_RKS_P()
+                # mdpol = self.get_RKS_mdpol()
 
             elif self.UKS:
-                TDDFT_pure_MVP, hdiag_sq = self.get_UKS_TDDFT_MVP()
-                P = self.get_UKS_P()
+                TDDFT_pure_MVP, hdiag_sq = self.get_UKS_TDDFT_pure_MVP()
+                # P = self.get_UKS_P()
             # print('min(hdiag_sq)', min(hdiag_sq)**0.5*parameter.Hartree_to_eV)
             energies_sq, Z = eigen_solver.Davidson(matrix_vector_product=TDDFT_pure_MVP, 
                                                 hdiag=hdiag_sq,
@@ -1650,7 +1445,9 @@ class TDDFT_ris(object):
         XY_norm_check = cp.linalg.norm( (cp.dot(X, X.T) - cp.dot(Y, Y.T)) - cp.eye(self.nroots) )
         print(f'check norm of X^TX - Y^YY - I = {XY_norm_check:.2e}')
 
-    
+        P = self.get_P()
+        mdpol = self.get_mdpol()
+
         oscillator_strength = spectralib.get_spectra(energies=energies, 
                                                     X=X/(2**0.5),
                                                     Y=Y/(2**0.5),

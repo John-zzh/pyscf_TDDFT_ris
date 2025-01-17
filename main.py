@@ -67,7 +67,7 @@ print('args.nroots', args.nroots)
 
 if __name__ == '__main__':
     start = time.time()
-    print('Woring directory:',os.getcwd())
+    print('Woring directory:', os.getcwd())
     '''
     if mf object already has a functional name, 
     then do not need to specify the a_x or (omega, alpha, beta), 
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                         print_threshold=args.print_threshold)           
     else:
         from pyscf_TDDFT_ris_cupy import TDDFT_ris
-        # print('use new code')
+        print('use GPU code')
         td = TDDFT_ris.TDDFT_ris(mf=mf.to_gpu(), 
                         theta=args.theta,
                         J_fit=args.J_fit, 
@@ -133,7 +133,6 @@ if __name__ == '__main__':
                         out_name=args.spectraoutname,
                         spectra = args.spectra,
                         print_threshold=args.print_threshold)         
-
 
     if args.TDA == True:
         energies, X, oscillator_strength = td.kernel_TDA()

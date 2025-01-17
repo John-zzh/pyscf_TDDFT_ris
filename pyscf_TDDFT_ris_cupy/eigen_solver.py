@@ -87,7 +87,9 @@ def Davidson(matrix_vector_product,
         else: 
             s_holder = math_helper.gen_VW(s_holder, V_holder, V_holder, size_old, size_new, symmetry=False)
             overlap_s = s_holder[:size_new,:size_new]
-            omega, x = scipy.linalg.eigh(sub_A, overlap_s)
+            omega, x = scipy.linalg.eigh(sub_A.get(), overlap_s.get())
+            omega = cp.asarray(omega)
+            x = cp.asarray(x)
 
         omega = omega[:N_states]
         x = x[:,:N_states]

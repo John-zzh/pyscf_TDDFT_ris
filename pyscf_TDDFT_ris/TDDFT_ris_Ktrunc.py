@@ -216,11 +216,11 @@ def get_eri2c_eri3c_RSH(mol, auxmol, eri2c_K, eri3c_K, alpha, beta, omega, max_m
 
     '''
     in the RSH functional, the Exchange ERI splits into two parts
-    (ij|ab) = (ij|1-(alpha + beta*erf(omega))/r|ab) + (ij|alpha + beta*erf(omega)/r|ab)
+    (ij|ab) = (ij|1-(alpha + beta*erf(omega))/r|ab) + (ij|(alpha + beta*erf(omega))/r|ab)
     -- The first part (ij|1-(alpha + beta*erf(omega))/r|ab) is short range, 
         treated by the DFT XC functional, thus not considered here
     -- The second part is long range 
-        (ij|alpha + beta*erf(omega)/r|ab) = alpha (ij|r|ab) + beta*(ij|erf(omega)/r|ab)
+        (ij|(alpha + beta*erf(omega))/r|ab) = alpha*(ij|r|ab) + beta*(ij|erf(omega)/r|ab)
 
 
         eri2c_K, eri3c_K are omega = 0, just like usual eri2c, eri3c
