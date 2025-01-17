@@ -220,7 +220,9 @@ def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK'
     Returns:
         Tpq: cupy.ndarray (naux, nao, nao)
     """
-
+    print('group_size = ', group_size)
+    print('group_size_aux = ', group_size_aux)
+    
     intopt = VHFOpt(mol, auxmol, 'int2e')
     intopt.build(aosym=aosym, group_size=group_size, group_size_aux=group_size_aux)
 
@@ -254,7 +256,7 @@ def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK'
             lj = intopt.angular[cpj]
          
             int3c_slice_blk = get_int3c2e_slice(intopt, cp_ij_id, cp_kl_id, omega=0)
-            int3c_slice_blk = cp.asarray(int3c_slice_blk, dtype=cp.float32, order='C')
+            # int3c_slice_blk = cp.asarray(int3c_slice_blk, dtype=cp.float32, order='C')
 
             if not mol.cart:
                 int3c_slice_blk = cart2sph(int3c_slice_blk, axis=1, ang=lj)
@@ -263,16 +265,19 @@ def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK'
 
             if omega and omega != 0:
                 int3c_slice_blk_omega = get_int3c2e_slice(intopt, cp_ij_id, cp_kl_id, omega=omega)
-                int3c_slice_blk_omega = cp.asarray(int3c_slice_blk_omega, dtype=cp.float32, order='C')
+                # int3c_slice_blk_omega = cp.asarray(int3c_slice_blk_omega, dtype=cp.float32, order='C')
                 if not mol.cart:
                     int3c_slice_blk_omega = cart2sph(int3c_slice_blk_omega, axis=1, ang=lj)
                     int3c_slice_blk_omega = cart2sph(int3c_slice_blk_omega, axis=2, ang=li)
                 int3c_slice_blk = alpha * int3c_slice_blk +  beta * int3c_slice_blk_omega
 
-
+            int3c_slice_blk = cp.asarray(int3c_slice_blk, dtype=cp.float32, order='C')
             i0, i1 = intopt.ao_loc[cpi], intopt.ao_loc[cpi+1]
             j0, j1 = intopt.ao_loc[cpj], intopt.ao_loc[cpj+1]  
             
+            # print('int3c_slice[:,j0:j1, i0:i1].shape', int3c_slice[:,j0:j1, i0:i1].shape)
+            # print('int3c_slice_blk.shape', int3c_slice_blk.shape)
+            assert int3c_slice[:,j0:j1, i0:i1].shape == int3c_slice_blk.shape
             int3c_slice[:,j0:j1, i0:i1] = int3c_slice_blk
 
         if aosym:
