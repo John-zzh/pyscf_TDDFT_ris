@@ -5,6 +5,23 @@ from pyscf_TDDFT_ris_cupy import math_helper, parameter
 import scipy
 import time
 
+def print_memory_info(words):
+    cp.cuda.PinnedMemoryPool().free_all_blocks()
+    cp.get_default_memory_pool().free_all_blocks()
+    device = cp.cuda.Device()
+    free_mem, total_mem = device.mem_info
+    used_mem = total_mem - free_mem
+    print(f"{words} memory usage: {used_mem / 1024**3:.2f} GB / {total_mem / 1024**3:.2f} GB")
+
+def get_available_gpu_memory():
+    '''Returns the available GPU memory in bytes using Cupy.'''
+    device = cp.cuda.Device(0)  # Assuming the first GPU
+    return device.mem_info[0]  # Returns the free memory in bytes
+
+def release_memory():
+    '''Releases the GPU memory using Cupy.'''
+    cp.cuda.PinnedMemoryPool().free_all_blocks()
+    cp.get_default_memory_pool().free_all_blocks()
 
 def Davidson(matrix_vector_product,
                     hdiag,
@@ -28,7 +45,14 @@ def Davidson(matrix_vector_product,
     size_old = 0
     size_new = min([N_states+8, 2*N_states, A_size])
 
+
+
     max_N_mv = max_iter*N_states + size_new
+
+    unit = 4 if single else 8
+    print(f'V and W holder is going to take { 2* max_N_mv * A_size / (1024 ** 2):.0f} MB memory')
+    
+
     V_holder = cp.zeros((max_N_mv, A_size),dtype=cp.float32 if single else cp.float64)
     W_holder = cp.zeros_like(V_holder)
     sub_A_holder = cp.zeros((max_N_mv,max_N_mv),dtype=cp.float32 if single else cp.float64)
@@ -156,10 +180,12 @@ def Davidson_Casida(matrix_vector_product,
 
     '''
     print('======= TDDFT Eigen Solver Statrs =======')
-
+    print_memory_info(' Davidson_Casida start')
     davidson_start = time.time()
     A_size = hdiag.shape[0]
     print('size of A matrix =', A_size)
+
+
     size_old = 0
     size_new = min([N_states+8, 2*N_states, A_size])
 
@@ -175,6 +201,11 @@ def Davidson_Casida(matrix_vector_product,
     a = [V.T W.T][A B][V] = [V.T W.T][U1] = VU1 + WU2
                  [B A][W]            [U2]
     '''
+
+    unit = 4 if single else 8
+    print(f'V W U1 U2 holder is going to take { 4 * max_N_mv * A_size * unit / (1024 ** 3):.0f} GB memory')
+    
+
     V_holder = cp.zeros((max_N_mv, A_size),dtype=cp.float32 if single else cp.float64)
     W_holder = cp.zeros_like(V_holder)
 
@@ -197,6 +228,7 @@ def Davidson_Casida(matrix_vector_product,
     V_holder = math_helper.TDA_diag_initial_guess(V_holder=V_holder,
                                                 N_states=size_new,
                                                 hdiag=hdiag)
+    print_memory_info(' Davidson_Casida after initial guess')
     subcost = 0
     MVcost = 0
     fill_holder_cost = 0
@@ -222,6 +254,8 @@ def Davidson_Casida(matrix_vector_product,
 
     # print('V_holder.dtype', V_holder.dtype)
     # print('type(V_holder)', type(V_holder))
+
+    omega_backup, X_backup, Y_backup = None, None, None 
     for ii in range(max_iter):
         print(f'iter: {ii+1:<3d}', end='')
         # print('size_old =', size_old)
@@ -325,8 +359,10 @@ def Davidson_Casida(matrix_vector_product,
 
         if size_new == size_old:
             print('All new guesses kicked out!!!!!!!')
+            omega, X_full, Y_full = omega_backup, X_backup, Y_backup 
             break
-
+        omega_backup, X_backup, Y_backup = omega, X_full, Y_full
+        release_memory()
     davidson_cost = time.time() - davidson_start
 
     if ii == (max_iter -1) and max_norm >= conv_tol:

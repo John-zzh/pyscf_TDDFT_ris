@@ -361,8 +361,8 @@ def S_symmetry_orthogonal(x,y):
 
     a = x_p_y_norm/x_m_y_norm
 
-    x_p_y /= 2
-    x_m_y *= a/2
+    x_p_y = x_p_y/2
+    x_m_y = x_m_y * a/2
 
     new_x = x_p_y + x_m_y
     new_y = x_p_y - x_m_y

@@ -8,8 +8,8 @@ import numpy as np
 import cupy as cp
 from pyscf_TDDFT_ris_cupy import parameter, math_helper, spectralib, eigen_solver
 
-# from pyscf_TDDFT_ris import eigen_solver_old as eigen_solver
-# from pyscf_TDDFT_ris import eigen_solver
+device = cp.cuda.Device()
+
 
 import time
 
@@ -17,13 +17,25 @@ cp.set_printoptions(linewidth=250, threshold=cp.inf)
 
 einsum = cp.einsum
 
+def print_memory_info(words):
+    cp.cuda.PinnedMemoryPool().free_all_blocks()
+    cp.get_default_memory_pool().free_all_blocks()
+    device = cp.cuda.Device()
+    free_mem, total_mem = device.mem_info
+    used_mem = total_mem - free_mem
+    print(f"{words} memory usage: {used_mem / 1024**3:.2f} GB / {total_mem / 1024**3:.2f} GB")
 
+def get_available_gpu_memory():
+    '''Returns the available GPU memory in bytes using Cupy.'''
+    device = cp.cuda.Device(0)  # Assuming the first GPU
+    return device.mem_info[0]  # Returns the free memory in bytes
 
-# def print_memory_usage(line):
-#     import psutil
-#     process = psutil.Process()
-#     memory_usage = process.memory_info().rss  
-#     print(f"memory usage at {line}: {memory_usage / (1024 ** 2):.0f} MB")
+def release_memory():
+    '''Releases the GPU memory using Cupy.'''
+    cp.cuda.PinnedMemoryPool().free_all_blocks()
+    cp.get_default_memory_pool().free_all_blocks()
+
+print_memory_info('at start')
 
 def get_auxmol(mol, theta=0.2, fitting_basis='s'):
     """
@@ -316,6 +328,7 @@ def compute_Tpq_on_gpu_general(mol, auxmol, C_p, C_q, lower_inv_eri2c, calc='JK'
     #     tmp = cp.einsum('Puv,up->Ppv', eri_3c2e, C_p)
     #     Ppq = cp.einsum('Ppv,vq->Ppq', tmp, C_q)
 
+        
     if calc == 'J':
         Tpq = get_Ppq_to_Tpq(Ppq[unsorted_aux_ao_index,:,:], lower_inv_eri2c)
         return Tpq
@@ -368,52 +381,259 @@ def gen_hdiag_MVP(hdiag, n_occ, n_vir):
     
 
 def gen_iajb_MVP(T_left, T_right):
+    # def iajb_MVP(V):
+    #     '''
+    #     (ia|jb) = Σ_Pjb (T_left_ia^P T_right_jb^P V_jb^m)
+    #             = Σ_P [ T_left_ia^P Σ_jb(T_right_jb^P V_jb^m) ]
+    #     if T_left == T_right, then it is either 
+    #         (1) (ia|jb) in RKS 
+    #         or 
+    #         (2)(ia_α|jb_α) or (ia_β|jb_β) in UKS, 
+    #     elif T_left != T_right
+    #         it is (ia_α|jb_β) or (ia_β|jb_α) in UKS
+
+    #     V in shape (m, n_occ * n_vir)
+    #     '''
+        
+    #     T_right_jb_V = einsum("Pjb,mjb->Pm", T_right, V)
+    #     iajb_V = einsum("Pia,Pm->mia", T_left, T_right_jb_V)
+
+    #     return iajb_V
+
     def iajb_MVP(V):
         '''
-        (ia|jb) = Σ_Pjb (T_left_ia^P T_right_jb^P V_jb^m)
-                = Σ_P [ T_left_ia^P Σ_jb(T_right_jb^P V_jb^m) ]
-        if T_left == T_right, then it is either 
-            (1) (ia|jb) in RKS 
-            or 
-            (2)(ia_α|jb_α) or (ia_β|jb_β) in UKS, 
-        elif T_left != T_right
-            it is (ia_α|jb_β) or (ia_β|jb_α) in UKS
-
-        V in shape (m, n_occ * n_vir)
-        '''
+        Optimized calculation of (ia|jb) = Σ_Pjb (T_left_ia^P T_right_jb^P V_jb^m)
+        by chunking along the auxao dimension to reduce memory usage.
         
-        T_right_jb_V = einsum("Pjb,mjb->Pm", T_right, V)
-        iajb_V = einsum("Pia,Pm->mia", T_left, T_right_jb_V)
+        Parameters:
+            V (cupy.ndarray): Input tensor of shape (m, n_occ * n_vir).
+            
+        Returns:
+            iajb_V (cupy.ndarray): Result tensor of shape (m, n_occ, n_vir).
+        '''
+        # print_memory_info('before iajb_MVP')
+        # Get the shape of the tensors
+        nauxao, n_occ_l, n_vir_l = T_left.shape
+        nauxao, n_occ_r, n_vir_r = T_right.shape
+        n_state, n_occ_r, n_vir_r = V.shape
+        # Initialize result tensor
+        iajb_V = cp.zeros((n_state, n_occ_l, n_vir_l), dtype=T_left.dtype)
 
+        # Estimate the memory size for one chunk
+        estimated_chunk_size_bytes = n_occ_r * n_vir_r * T_right.itemsize * 4  # 4 for each element (complex or float64)
+        
+        # Get available GPU memory in bytes
+        available_gpu_memory = get_available_gpu_memory()
+
+        # Estimate the optimal chunk size based on available GPU memory
+        aux_chunk_size = int(available_gpu_memory * 0.8 // estimated_chunk_size_bytes)
+
+        # Ensure the chunk size is at least 1 and doesn't exceed the total number of auxao
+        aux_chunk_size = max(1, min(nauxao, aux_chunk_size))
+        # print(f"Allocated aux_chunk_size: {aux_chunk_size}")
+
+        # Iterate over chunks of the auxao dimension
+        for aux_start in range(0, nauxao, aux_chunk_size):
+            aux_end = min(aux_start + aux_chunk_size, nauxao)
+
+            T_left_chunk = T_left[aux_start:aux_end, :, :]  # Shape: (aux_range, n_occ, n_vir)
+            T_right_chunk = T_right[aux_start:aux_end, :, :]   # Shape: (aux_range, n_occ * n_vir)
+            
+
+            T_right_jb_V_chunk = cp.einsum("Pjb,mjb->Pm", T_right_chunk, V)
+
+            iajb_V_chunk = cp.einsum("Pia,Pm->mia", T_left_chunk, T_right_jb_V_chunk)
+            del T_right_jb_V_chunk
+
+            iajb_V += iajb_V_chunk  # Accumulate the result
+
+            del iajb_V_chunk
+            release_memory()
+
+        # print_memory_info('after iajb_MVP')
         return iajb_V
+
+
     return iajb_MVP
 
 def gen_ijab_MVP(T_ij, T_ab):
+    # def ijab_MVP(V):
+    #     '''
+    #     (ij|ab) = Σ_Pjb (T_ij^P T_ab^P V_jb^m)
+    #             = Σ_P [T_ij^P Σ_jb(T_ab^P V_jb^m)]
+    #     V in shape (m, n_occ * n_vir)
+    #     '''
+    #     T_ab_V = einsum("Pab,mjb->Pamj", T_ab, V, optimize=True)
+    #     ijab_V = einsum("Pij,Pamj->mia", T_ij, T_ab_V)
+
+    #     return ijab_V
+    # def ijab_MVP(V):
+    #     '''
+    #     Optimized calculation of (ij|ab) = Σ_Pjb (T_ij^P T_ab^P V_jb^m)
+    #     by chunking along the n_occ dimension to reduce memory usage.
+
+    #     Parameters:
+    #         V (cupy.ndarray): Input tensor of shape (n_state, n_occ, n_vir).
+    #         occ_chunk_size (int): Chunk size for splitting the n_occ dimension.
+
+    #     Returns:
+    #         ijab_V (cupy.ndarray): Result tensor of shape (n_state, n_occ, n_vir).
+    #     '''
+    #     nauxao, n_vir, n_vir = T_ab.shape
+    #     n_state, n_occ, n_vir = V.shape
+    #     # assert n_vir == n_vir1 == n_vir2, "n_vir dimensions in V and T_ab must match"
+
+    #     # Initialize result tensor
+    #     ijab_V = cp.zeros((n_state, n_occ, n_vir), dtype=T_ab.dtype)
+    #     # print(f"  Total memory requirement per occ_chunk (estimated): {nauxao * occ_chunk_size * n_vir * n_state / (1024 ** 2):.0f} MB")
+
+
+    #     # Get free memory and dynamically calculate chunk size
+    #     available_gpu_memory = get_available_gpu_memory()
+    #     bytes_per_occ = nauxao * n_vir * n_state * 4  # Assuming float32 (4 bytes per element)
+    #     occ_chunk_size = max(1, int(available_gpu_memory * 0.6 // bytes_per_occ))  # Ensure at least 1
+    #     # Iterate over chunks of the n_occ dimension
+    #     for occ_start in range(0, n_occ, occ_chunk_size):
+    #         occ_end = min(occ_start + occ_chunk_size, n_occ)
+    #         occ_range = occ_end - occ_start
+
+    #         # print(f"Processing n_occ chunk: {occ_start}-{occ_end} (size: {occ_range})")
+
+    #         # Extract the current chunk of V
+    #         V_chunk = V[:, occ_start:occ_end, :]  # Shape: (n_state, occ_range, n_vir)
+
+    #         # Extract the corresponding chunk of T_ab and T_ij
+    #         T_ab_chunk = T_ab[:, :, :]  # Shape: (nauxao, n_vir, n_vir)
+    #         T_ij_chunk = T_ij[:, occ_start:occ_end, occ_start:occ_end]  # Shape: (nauxao, occ_range, n_vir)
+
+    #         # Compute T_ab_V for the current chunk
+    #         T_ab_V_chunk = cp.einsum("Pab,mjb->Pamj", T_ab_chunk, V_chunk, optimize=True)
+    #         # print_memory_info(f"After T_ab_V computation for chunk {occ_start}-{occ_end}")
+
+    #         # Compute ijab_V for the current chunk
+    #         ijab_V[:, occ_start:occ_end, :] = cp.einsum("Pij,Pamj->mia", T_ij_chunk, T_ab_V_chunk)
+    #         # print_memory_info(f"After ijab_V computation for chunk {occ_start}-{occ_end}")
+
+    #         # Release intermediate variables and clean up memory
+    #         del V_chunk, T_ab_V_chunk
+    #         cp.get_default_memory_pool().free_all_blocks()
+    #         # print_memory_info(f"After memory cleanup for chunk {occ_start}-{occ_end}")
+
+    #     return ijab_V
     def ijab_MVP(V):
         '''
-        (ij|ab) = Σ_Pjb (T_ij^P T_ab^P V_jb^m)
-                = Σ_P [T_ij^P Σ_jb(T_ab^P V_jb^m)]
-        V in shape (m, n_occ * n_vir)
-        '''
+        Optimized calculation of (ij|ab) = Σ_Pjb (T_ij^P T_ab^P V_jb^m)
+        by chunking along the n_vir dimension to reduce memory usage.
 
-        T_ab_V = einsum("Pab,mjb->Pamj", T_ab, V)
-        ijab_V = einsum("Pij,Pamj->mia", T_ij, T_ab_V)
+        Parameters:
+            V (cupy.ndarray): Input tensor of shape (n_state, n_occ, n_vir).
+            
+        Returns:
+            ijab_V (cupy.ndarray): Result tensor of shape (n_state, n_occ, n_vir).
+        '''
+        nauxao, n_vir, n_vir = T_ab.shape  # Dimensions of T_ab
+        n_state, n_occ, n_vir = V.shape      # Dimensions of V
+
+        # Initialize result tensor
+        ijab_V = cp.zeros((n_state, n_occ, n_vir), dtype=T_ab.dtype)
+
+        # Get free memory and dynamically calculate chunk size
+        available_gpu_memory = get_available_gpu_memory()
+        bytes_per_vir = nauxao * n_occ * n_state * 4  # Assuming float32 (4 bytes per element)
+        vir_chunk_size = max(1, int(available_gpu_memory * 0.2 // bytes_per_vir))  # Ensure at least 1
+
+        # Iterate over chunks of the n_vir dimension
+        for vir_start in range(0, n_vir, vir_chunk_size):
+            vir_end = min(vir_start + vir_chunk_size, n_vir)
+            vir_range = vir_end - vir_start
+
+            # print(f"Processing n_vir chunk: {vir_start}-{vir_end} (size: {vir_range})")
+
+            # Extract the current chunk of V
+            V_chunk = V[:, :, vir_start:vir_end]  # Shape: (n_state, n_occ, vir_range)
+
+            # Extract the corresponding chunk of T_ab
+            T_ab_chunk = T_ab[:, vir_start:vir_end, vir_start:vir_end]  # Shape: (nauxao, vir_range, n_vir)
+            # T_ij_chunk = T_ij[:, :, :]  # Shape: (nauxao, n_occ, vir_range)
+
+            # Compute T_ab_V for the current chunk
+            T_ab_V_chunk = cp.einsum("Pab,mjb->Pamj", T_ab_chunk, V_chunk, optimize=True)
+            # print(f"After T_ab_V computation for chunk {vir_start}-{vir_end}")
+
+            # Compute ijab_V for the current chunk
+            ijab_V[:, :, vir_start:vir_end] = cp.einsum("Pij,Pamj->mia", T_ij, T_ab_V_chunk)
+            # print(f"After ijab_V computation for chunk {vir_start}-{vir_end}")
+
+            # Release intermediate variables and clean up memory
+            del V_chunk, T_ab_V_chunk
+            cp.get_default_memory_pool().free_all_blocks()
+            # print(f"After memory cleanup for chunk {vir_start}-{vir_end}")
 
         return ijab_V
+
+    
     return ijab_MVP
 
 def get_ibja_MVP(T_ia):    
-    def ibja_MVP(V):
-        '''
-        the exchange (ib|ja) in B matrix
-        (ib|ja) = Σ_Pjb (T_ib^P T_ja^P V_jb^m)
-                = Σ_P [T_ja^P Σ_jb(T_ib^P V_jb^m)]           
-        '''
+    # def ibja_MVP(V):
+    #     '''
+    #     the exchange (ib|ja) in B matrix
+    #     (ib|ja) = Σ_Pjb (T_ib^P T_ja^P V_jb^m)
+    #             = Σ_P [T_ja^P Σ_jb(T_ib^P V_jb^m)]           
+    #     '''
 
-        T_ib_V = einsum("Pib,mjb->Pimj", T_ia, V)
-        ibja_V = einsum("Pja,Pimj->mia", T_ia, T_ib_V)
+    #     T_ib_V = einsum("Pib,mjb->Pimj", T_ia, V)
+    #     ibja_V = einsum("Pja,Pimj->mia", T_ia, T_ib_V)
+
+    #     return ibja_V
+    def ibja_MVP(V, occ_chunk_size=100):
+        '''
+        Optimized calculation of (ib|ja) = Σ_Pjb (T_ib^P T_ja^P V_jb^m)
+        by chunking along the n_occ dimension to reduce memory usage.
+
+        Parameters:
+            V (cupy.ndarray): Input tensor of shape (n_state, n_occ, n_vir).
+            occ_chunk_size (int): Chunk size for splitting the n_occ dimension.
+
+        Returns:
+            ibja_V (cupy.ndarray): Result tensor of shape (n_state, n_occ, n_vir).
+        '''
+        nauxao, n_occ, n_vir = T_ia.shape
+        n_state, n_occ, n_vir = V.shape
+        # assert n_occ == n_occ_v and n_vir == n_vir_v, "Shapes of V and T_ia must match"
+
+        # Initialize result tensor
+        ibja_V = cp.zeros((n_state, n_occ, n_vir), dtype=T_ia.dtype)
+        # print(f"  Total memory requirement per occ_chunk (estimated): {nauxao * occ_chunk_size * n_vir * n_state / (1024 ** 2):.0f} MB")
+
+        # Iterate over chunks of the n_occ dimension
+        for occ_start in range(0, n_occ, occ_chunk_size):
+            occ_end = min(occ_start + occ_chunk_size, n_occ)
+            occ_range = occ_end - occ_start
+
+            # print(f"Processing n_occ chunk: {occ_start}-{occ_end} (size: {occ_range})")
+
+            # Extract the current chunk of V
+            V_chunk = V[:, occ_start:occ_end, :]  # Shape: (n_state, occ_range, n_vir)
+
+            # Extract the corresponding chunk of T_ia
+            T_ia_chunk = T_ia[:, occ_start:occ_end, :]  # Shape: (nauxao, occ_range, n_vir)
+
+            # Compute T_ib_V for the current chunk
+            T_ib_V_chunk = cp.einsum("Pib,mjb->Pimj", T_ia_chunk, V_chunk, optimize=True)
+            # print_memory_info(f"After T_ib_V computation for chunk {occ_start}-{occ_end}")
+
+            # Compute ibja_V for the current chunk
+            ibja_V[:, occ_start:occ_end, :] = cp.einsum("Pja,Pimj->mia", T_ia_chunk, T_ib_V_chunk)
+            # print_memory_info(f"After ibja_V computation for chunk {occ_start}-{occ_end}")
+
+            # Release intermediate variables and clean up memory
+            del V_chunk, T_ia_chunk, T_ib_V_chunk
+            cp.get_default_memory_pool().free_all_blocks()
+            # print_memory_info(f"After memory cleanup for chunk {occ_start}-{occ_end}")
 
         return ibja_V
+
     return ibja_MVP
 
 
@@ -739,7 +959,7 @@ class TDDFT_ris(object):
         group_size = self.group_size
         group_size_aux = self.group_size_aux
 
-        
+        print_memory_info('before T_ia_J')
         print('==================== RIJ ====================')
         tt = time.time()
 
@@ -759,8 +979,9 @@ class TDDFT_ris(object):
                                             omega=0,
                                             group_size = group_size,
                                             group_size_aux = group_size_aux)
+        print(f'T_ia_J MEM: {T_ia_J.nbytes / (1024 ** 2):.0f} MB')
         print(f'T_ia_J time {time.time() - tt:.1f} seconds')
-
+        print_memory_info('after T_ia_J')
         print('==================== RIK ====================')
         tt = time.time()
         if K_fit == J_fit and (omega == 0 or omega == None):
@@ -790,7 +1011,7 @@ class TDDFT_ris(object):
                                                             group_size_aux = group_size_aux)
 
         print(f'T_ia_K T_ij_K T_ab_K time {time.time() - tt:.1f} seconds')
-
+        print_memory_info('after T_ia_K T_ij_K T_ab_K')
         hdiag_MVP = gen_hdiag_MVP(hdiag=hdiag, n_occ=n_occ, n_vir=n_vir)
 
         iajb_MVP = gen_iajb_MVP(T_left=T_ia_J, T_right=T_ia_J)
@@ -826,7 +1047,7 @@ class TDDFT_ris(object):
             ApB_XpY += 4*iajb_MVP(XpY) 
             # print(f'    iajb_MVP time {time.time() - tt:.2f}  seconds')
             tt = time.time()
-
+            # print_memory_info('after ApB_XpY')
             ApB_XpY[:,n_occ-rest_occ:,:rest_vir] -= a_x*ijab_MVP(XpY[:,n_occ-rest_occ:,:rest_vir]) 
             # print(f'    ijab_MVP X+Y time {time.time() - tt:.2f}  seconds')
             tt = time.time()

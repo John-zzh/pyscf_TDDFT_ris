@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
     ''' if args.filename ends with string .fch, use  get_mf_from_fch function '''
 
-    if args.filename[-4:] == '.fch' :
+    if '.fch' in args.filename:
         mf = readMO.get_mf_from_fch(fch_file=args.filename, 
                                     functional=args.functional)
         get_mf_from_fch_time = time.time() - start
