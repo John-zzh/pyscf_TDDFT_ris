@@ -29,6 +29,21 @@ import numpy as np
 
 
 
+# def print_coeff(state, coeff_vec, sybmol, n_occ, n_vir, print_threshold):
+
+#     abs_coeff = np.abs(coeff_vec[state, :, :])  
+#     mask = abs_coeff >= print_threshold         
+
+#     occ_indices, vir_indices = np.where(mask)
+
+#     coeff_values = coeff_vec[state, occ_indices, vir_indices]
+
+#     # # 打印结果
+#     # for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values):
+#     #     print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
+#     results = [ f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}" for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values) ]
+#     return results
+
 def print_coeff(state, coeff_vec, sybmol, n_occ, n_vir, print_threshold):
 
     abs_coeff = np.abs(coeff_vec[state, :, :])  
@@ -36,12 +51,18 @@ def print_coeff(state, coeff_vec, sybmol, n_occ, n_vir, print_threshold):
 
     occ_indices, vir_indices = np.where(mask)
 
+    if len(occ_indices) == 0:
+        return []
+        
     coeff_values = coeff_vec[state, occ_indices, vir_indices]
 
-    # # 打印结果
-    # for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values):
-    #     print(f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}")
-    results = [ f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}" for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values) ]
+    # results = [ f"{occ+1:>15d} {sybmol} {vir+1+n_occ:<8d} {coeff:>15.5f}" for occ, vir, coeff in zip(occ_indices, vir_indices, coeff_values) ]
+    occ_indices += 1  # Convert to 1-based index
+    vir_indices += 1 + n_occ  # Convert to 1-based index and offset for vir_indices
+
+    format_str = np.vectorize(lambda occ, vir, coeff: f"{occ:>15d} {sybmol} {vir:<8d} {coeff:>15.5f}")
+    results = format_str(occ_indices, vir_indices, coeff_values).tolist()
+
     return results
 
 def _charge_center(mol):
