@@ -50,6 +50,7 @@ rsh_func['lc-PBE'] = (0.47, 0, 1.0)
 pure or hybrid functionals, hybrid component a_x
 '''
 hbd_func = {}
+hbd_func['hf'] = 1
 hbd_func['pbe'] = 0
 hbd_func['pbe,pbe'] = 0
 hbd_func['tpss'] = 0

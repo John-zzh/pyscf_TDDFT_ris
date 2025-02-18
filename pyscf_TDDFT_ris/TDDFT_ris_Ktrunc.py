@@ -1387,6 +1387,7 @@ class TDDFT_ris(object):
         tag = self.eri_tag
         # int_rxp = self.mol.intor_symmetric('int1e_cg_irxp'+tag)
         int_rxp = self.mol.intor('int1e_cg_irxp', comp=3, hermi=2)
+        # print(int_rxp)
         # int_rxp = int_r.astype(dtype=np.float32 if self.single else np.float64)
         mo_occ = self.mf.mo_occ
         mo_coeff = self.mf.mo_coeff

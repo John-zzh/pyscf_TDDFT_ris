@@ -219,6 +219,7 @@ def Davidson_Casida(matrix_vector_product,
         fill_holder = math_helper.VW_nKs_fill_holder
 
     # print('V_holder.dtype', V_holder.dtype)
+    omega_backup, X_backup, Y_backup = None, None, None 
     for ii in range(max_iter):
         print(f'iter: {ii+1:<3d}', end='')
         # print('size_old =', size_old)
@@ -322,8 +323,9 @@ def Davidson_Casida(matrix_vector_product,
 
         if size_new == size_old:
             print('All new guesses kicked out!!!!!!!')
+            omega, X_full, Y_full = omega_backup, X_backup, Y_backup
             break
-
+        omega_backup, X_backup, Y_backup = omega, X_full, Y_full
     davidson_cost = time.time() - davidson_start
 
     if ii == (max_iter -1) and max_norm >= conv_tol:

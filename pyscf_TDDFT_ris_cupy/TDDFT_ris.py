@@ -696,7 +696,7 @@ class TDDFT_ris(object):
         print('use single precision?', self.single)
 
 
-        if hasattr(mf, 'xc'):
+        if hasattr(mf, 'xc') and self.a_x == None:
             functional = mf.xc.lower()
             self.functional = mf.xc
             print('loading default XC functional paramters from parameter.py')

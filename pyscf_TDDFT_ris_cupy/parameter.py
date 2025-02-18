@@ -60,6 +60,7 @@ hbd_func['bhh-lyp'] = 0.5
 hbd_func['m05-2x'] = 0.56
 hbd_func['m06'] = 0.27
 hbd_func['m06-2x'] = 0.54
+hbd_func['hf'] = 1
 hbd_func[None] = 1
 
 
