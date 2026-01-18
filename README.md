@@ -1,5 +1,8 @@
 **Read this in other languages: [English](README.md), [中文](README_zh.md).**
 
+This repo is no longer maintained, and all codes are merging into PySCF 
+https://github.com/John-zzh/pyscf-forge/tree/ris#
+
 
 # TDDFT-ris (v2.0)
 This python package, based on PySCF, provides the semiempirical TDDFT-ris method, offering a quick and accurate calculation of TDDFT UV-vis absorption spectra. The TDDFT-ris calculation starts from a completed SCF calculation, in Gaussian`.fch` file format. Outputs from other programs can be converted to `.fch` file easily through MOKIT.Also, it can start from the PySCF `mf` object.
@@ -222,14 +225,14 @@ To cite the TDDFT-ris method:
     of organic molecules. The Journal of Physical Chemistry Letters 
     14, no. 7 (2023): 1968-1976.](https://pubs.acs.org/doi/10.1021/acs.jpclett.2c03698)(must cite)
 2. [Zhou, Zehao, and Shane M. Parker. 
-            Converging Time-Dependent Density Functional Theory Calculations in Five Iterations 
-            with Minimal Auxiliary Preconditioning. Journal of Chemical Theory and Computation 
-            20, no. 15 (2024): 6738-6746.](https://pubs.acs.org/doi/10.1021/acs.jctc.4c00577) 
-            (for efficient orbital truncation technique)
-3. [ Zhou, Zehao, and Shane M. Parker. 
-            Converging Time-Dependent Density Functional Theory Calculations in Five Iterations 
-            with Minimal Auxiliary Preconditioning. Journal of Chemical Theory and Computation 
-            20, no. 15 (2024): 6738-6746. ](https://doi.org/10.1063/5.0020545)(The idea of TDDFT-ris originates from TDDFT-as)
+   Converging Time-Dependent Density Functional Theory Calculations in Five Iterations 
+   with Minimal Auxiliary Preconditioning. Journal of Chemical Theory and Computation 
+   20, no. 15 (2024): 6738-6746.](https://pubs.acs.org/doi/10.1021/acs.jctc.4c00577) 
+   (for efficient orbital truncation technique)
+3. [ Giannone, Giulia, and Fabio Della Sala.
+   Minimal auxiliary basis set for time-dependent density functional theory and
+   comparison with tight-binding approximations: Application to silver nanoparticles.
+   The Journal of Chemical Physics 153, no. 8 (2020).](https://doi.org/10.1063/5.0020545)(The idea of TDDFT-ris originates from TDDFT-as)
    
 To cite the pyscf-TDDFT-ris package:
 1. Zehao Zhou, pyscf-TDDFT-ris, https://github.com/John-zzh/pyscf_TDDFT_ris
